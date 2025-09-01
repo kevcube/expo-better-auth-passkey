@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["BetterAuthReactNativePasskeyModule"]
+  },
+  "android": {
+    "modules": ["github.kevcube.betterauthreactnativepasskey.BetterAuthReactNativePasskeyModule"]
+  }
+}
