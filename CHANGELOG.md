@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.0.1...v1.1.0) (2025-09-03)
+
+
+### Features
+
+* use bun workspace ([eecc788](https://github.com/kevcube/expo-better-auth-passkey/commit/eecc788bacb5fd62c6600c4c26389463eceddd64))
+
 ## [1.0.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.0.0...v1.0.1) (2025-09-03)
 
 
