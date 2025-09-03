@@ -2,6 +2,7 @@
   "expo": {
     "name": "better-auth-react-native-passkey-example",
     "slug": "better-auth-react-native-passkey-example",
+    "scheme": "better-auth-react-native-passkey-example",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "github.kevcube.betterauthreactnativepasskey.example"
+      "bundleIdentifier": "github.kevcube.betterauthreactnativepasskey.example",
+      "associatedDomains": [
+        "webcredentials:"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +29,13 @@
       "package": "github.kevcube.betterauthreactnativepasskey.example"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "output": "server"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-router",
+      "expo-web-browser"
+    ]
   }
 }

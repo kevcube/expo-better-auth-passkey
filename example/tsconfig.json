@@ -4,7 +4,8 @@
     "strict": true,
     "paths": {
       "better-auth-react-native-passkey": ["../src/index"],
-      "better-auth-react-native-passkey/*": ["../src/*"]
+      "better-auth-react-native-passkey/*": ["../src/*"],
+      "@/*": ["./*"]
     }
   }
 }

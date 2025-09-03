@@ -1,7 +1,14 @@
 package github.kevcube.betterauthreactnativepasskey
 
+import android.app.Activity
+import androidx.credentials.*
+import androidx.credentials.exceptions.CreateCredentialCancellationException
+import androidx.credentials.exceptions.CreateCredentialException
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import org.json.JSONObject
 import java.net.URL
 
 class BetterAuthReactNativePasskeyModule : Module() {
@@ -34,6 +41,52 @@ class BetterAuthReactNativePasskeyModule : Module() {
       sendEvent("onChange", mapOf(
         "value" to value
       ))
+    }
+
+    // Native passkey creation via Credential Manager
+    AsyncFunction("createPasskey") { options: Map<String, Any> ->
+      val activity: Activity = appContext.currentActivity
+        ?: throw IllegalStateException("No current Activity available")
+      val credentialManager = CredentialManager.create(activity)
+
+      // Convert options map to JSON expected by Android Credentials API
+      // Uses WebAuthn PublicKeyCredentialCreationOptions JSON
+      val requestJson = JSONObject(options).toString()
+      val request = CreatePublicKeyCredentialRequest(requestJson)
+
+      try {
+        val response = credentialManager.createCredential(activity, request)
+        val cred = response.credential as PublicKeyCredential
+        val registrationJson = cred.registrationResponseJson
+        // Return parsed JSON back to JS
+        JSONObject(registrationJson)
+      } catch (e: CreateCredentialCancellationException) {
+        throw e
+      } catch (e: CreateCredentialException) {
+        throw e
+      }
+    }
+
+    // Native passkey authentication via Credential Manager
+    AsyncFunction("getPasskey") { options: Map<String, Any> ->
+      val activity: Activity = appContext.currentActivity
+        ?: throw IllegalStateException("No current Activity available")
+      val credentialManager = CredentialManager.create(activity)
+
+      val requestJson = JSONObject(options).toString()
+      val getOption = GetPublicKeyCredentialOption(requestJson)
+      val getRequest = GetCredentialRequest(listOf(getOption))
+
+      try {
+        val response = credentialManager.getCredential(activity, getRequest)
+        val cred = response.credential as PublicKeyCredential
+        val authenticationJson = cred.authenticationResponseJson
+        JSONObject(authenticationJson)
+      } catch (e: GetCredentialCancellationException) {
+        throw e
+      } catch (e: GetCredentialException) {
+        throw e
+      }
     }
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of
