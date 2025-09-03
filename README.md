@@ -17,11 +17,11 @@ npm install better-auth
 ### Install the plugin
 
 ```bash
-npm install expo-better-auth-passkey
+npm expo install expo-better-auth-passkey
 # or
-yarn add expo-better-auth-passkey
+yarn expo install expo-better-auth-passkey
 # or
-bun add expo-better-auth-passkey
+bun expo install expo-better-auth-passkey
 ```
 
 ### iOS Setup
@@ -41,13 +41,13 @@ This module is a drop-in replacement for better-auth's `passkeyClient` that work
 import { passkeyClient } from "better-auth/client/plugins";
 
 // After (works on web, iOS, and Android)
-import { passkeyClient } from "better-auth-react-native-passkey";
+import { expoPasskeyClient } from "better-auth-react-native-passkey";
 
 // Use exactly the same as better-auth's passkey client
 export const authClient = createAuthClient({
   baseURL: "https://your-server.com",
   plugins: [
-    passkeyClient(), // Now works on native!
+    expoPasskeyClient(), // Now works on native!
   ],
 });
 ```
@@ -57,7 +57,7 @@ export const authClient = createAuthClient({
 All methods from better-auth's passkey client are supported:
 
 - `authClient.signIn.passkey()` - Sign in with passkey
-- `authClient.passkey.addPasskey()` - Register a new passkey  
+- `authClient.passkey.addPasskey()` - Register a new passkey
 - `authClient.passkey.deletePasskey()` - Delete a passkey
 - `authClient.passkey.updatePasskey()` - Update passkey metadata
 - `authClient.useListPasskeys()` - React hook to list user's passkeys
@@ -67,7 +67,7 @@ All methods from better-auth's passkey client are supported:
 This module wraps better-auth's `passkeyClient` and transparently intercepts WebAuthn browser API calls (`navigator.credentials.create/get`) to use platform-native implementations:
 
 - **Web**: Uses standard WebAuthn (unchanged)
-- **iOS/macOS**: Uses AuthenticationServices framework  
+- **iOS/macOS**: Uses AuthenticationServices framework
 - **Android**: Uses Credential Manager API
 
 The plugin delegates all server communication to better-auth's existing implementation, only replacing the client-side WebAuthn calls. The native modules accept and return standard WebAuthn JSON formats, ensuring full compatibility with better-auth's server-side passkey implementation.
@@ -80,25 +80,6 @@ The plugin delegates all server communication to better-auth's existing implemen
 # Installation in managed Expo projects
 
 For [managed](https://docs.expo.dev/archive/managed-vs-bare/) Expo projects, please follow the installation instructions in the [API documentation for the latest stable release](#api-documentation). If you follow the link and there is no documentation available then this library is not yet usable within managed projects &mdash; it is likely to be included in an upcoming Expo SDK release.
-
-# Installation in bare React Native projects
-
-For bare React Native projects, you must ensure that you have [installed and configured the `expo` package](https://docs.expo.dev/bare/installing-expo-modules/) before continuing.
-
-### Add the package to your npm dependencies
-
-```
-npm install better-auth-react-native-passkey
-```
-
-### Configure for Android
-
-
-
-
-### Configure for iOS
-
-Run `npx pod-install` after installing the npm package.
 
 # Contributing
 
