@@ -1,14 +1,14 @@
 import { expoClient } from "@better-auth/expo/client";
 import { anonymousClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
-import { passkeyClient as rnPasskeyClient } from "better-auth-react-native-passkey";
+import { expoPasskeyClient } from "expo-better-auth-passkey";
 import * as SecureStore from "expo-secure-store";
 
 export const authClient = createAuthClient({
-  baseURL: "http://localhost:8081",
+  baseURL: "https://590d7ab45878.ngrok-free.app",
   plugins: [
     anonymousClient(),
-    rnPasskeyClient(),
+    expoPasskeyClient(),
     expoClient({
       scheme: "github.kevcube.betterauthreactnativepasskey.example",
       storagePrefix: "better-auth-react-native-passkey-example",

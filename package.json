@@ -1,7 +1,7 @@
 {
-  "name": "better-auth-react-native-passkey",
+  "name": "expo-better-auth-passkey",
   "version": "0.1.0",
-  "description": "Expo module for using better-auth's passkey authentication",
+  "description": "Expo native passkey support for better-auth",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
@@ -18,24 +18,29 @@
   "keywords": [
     "react-native",
     "expo",
-    "better-auth-react-native-passkey",
-    "BetterAuthReactNativePasskey"
+    "expo-better-auth-passkey",
+    "better-auth",
+    "passkey",
+    "webauthn"
   ],
-  "repository": "https://github.com/better-auth-react-native-passkey",
+  "repository": "https://github.com/expo-better-auth-passkey",
   "bugs": {
-    "url": "https://github.com/better-auth-react-native-passkey/issues"
+    "url": "https://github.com/expo-better-auth-passkey/issues"
   },
   "author": "kevcube <kevin@icecube.dog> (kevcube)",
   "license": "MIT",
-  "homepage": "https://github.com/better-auth-react-native-passkey#readme",
-  "dependencies": {},
+  "homepage": "https://github.com/expo-better-auth-passkey#readme",
   "devDependencies": {
     "@types/react": "~19.1.10",
-    "expo": "^54.0.0-preview.12",
+    "better-auth": "^1.3.7",
+    "expo": "54.0.0-preview.13",
     "expo-module-scripts": "^4.1.10",
     "react-native": "0.81.1"
   },
   "peerDependencies": {
+    "@simplewebauthn/browser": "*",
+    "@simplewebauthn/types": "*",
+    "better-auth": ">=1.0.0",
     "expo": "*",
     "react": "*",
     "react-native": "*",

@@ -6,21 +6,22 @@ import { Pool } from "pg";
 
 export const auth = betterAuth({
   appName: "Openteller",
-  baseURL: "http://localhost:8081",
+  baseURL: "https://590d7ab45878.ngrok-free.app",
   database: new Pool({
     connectionString: "postgres://auth:auth@localhost:5432/auth",
   }),
   plugins: [
     anonymous(),
     passkey({
-      rpID: "localhost",
+      rpID: "590d7ab45878.ngrok-free.app",
       rpName: "Expo Better Auth Passkey Example",
-      origin: "http://localhost:8081",
+      origin: "https://590d7ab45878.ngrok-free.app",
     }),
     expo(),
   ],
   trustedOrigins: [
-    "http://localhost:8081",
+    "https://590d7ab45878.ngrok-free.app",
     "better-auth-react-native-passkey-example://",
+    "http://localhost:8081",
   ],
 });

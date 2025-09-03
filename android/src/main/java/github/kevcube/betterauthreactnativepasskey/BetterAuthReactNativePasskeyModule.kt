@@ -21,27 +21,6 @@ class BetterAuthReactNativePasskeyModule : Module() {
     // The module will be accessible from `requireNativeModule('BetterAuthReactNativePasskey')` in JavaScript.
     Name("BetterAuthReactNativePasskey")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants(
-      "PI" to Math.PI
-    )
-
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
 
     // Native passkey creation via Credential Manager
     AsyncFunction("createPasskey") { options: Map<String, Any> ->
@@ -58,8 +37,13 @@ class BetterAuthReactNativePasskeyModule : Module() {
         val response = credentialManager.createCredential(activity, request)
         val cred = response.credential as PublicKeyCredential
         val registrationJson = cred.registrationResponseJson
-        // Return parsed JSON back to JS
-        JSONObject(registrationJson)
+        // Parse and ensure transports field exists
+        val result = JSONObject(registrationJson)
+        val responseObj = result.getJSONObject("response")
+        if (!responseObj.has("transports")) {
+          responseObj.put("transports", org.json.JSONArray().put("internal"))
+        }
+        result
       } catch (e: CreateCredentialCancellationException) {
         throw e
       } catch (e: CreateCredentialException) {
@@ -89,15 +73,5 @@ class BetterAuthReactNativePasskeyModule : Module() {
       }
     }
 
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(BetterAuthReactNativePasskeyView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: BetterAuthReactNativePasskeyView, url: URL ->
-        view.webView.loadUrl(url.toString())
-      }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
-    }
   }
 }

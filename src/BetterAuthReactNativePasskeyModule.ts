@@ -1,12 +1,21 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+  AuthenticationResponseJSON,
+} from "@simplewebauthn/types";
+import { requireNativeModule } from "expo";
 
-import { BetterAuthReactNativePasskeyModuleEvents } from './BetterAuthReactNativePasskey.types';
+interface BetterAuthReactNativePasskeyModule {
+  createPasskey(
+    options: PublicKeyCredentialCreationOptionsJSON
+  ): Promise<RegistrationResponseJSON>;
 
-declare class BetterAuthReactNativePasskeyModule extends NativeModule<BetterAuthReactNativePasskeyModuleEvents> {
-  PI: number;
-  hello(): string;
-  setValueAsync(value: string): Promise<void>;
+  getPasskey(
+    options: PublicKeyCredentialRequestOptionsJSON
+  ): Promise<AuthenticationResponseJSON>;
 }
 
-// This call loads the native module object from the JSI.
-export default requireNativeModule<BetterAuthReactNativePasskeyModule>('BetterAuthReactNativePasskey');
+export default requireNativeModule<BetterAuthReactNativePasskeyModule>(
+  "BetterAuthReactNativePasskey"
+);
