@@ -52,5 +52,9 @@
     "react": "*",
     "react-native": "*",
     "nanostores": "*"
-  }
+  },
+  "workspaces": [
+    ".",
+    "example"
+  ]
 }
