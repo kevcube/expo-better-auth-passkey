@@ -22,6 +22,13 @@ export const auth = betterAuth({
   trustedOrigins: [
     "https://590d7ab45878.ngrok-free.app",
     "better-auth-react-native-passkey-example://",
+    "github.kevcube.betterauthreactnativepasskey.example://",
     "http://localhost:8081",
   ],
+  logger: {
+    level: "debug",
+    log(level, message, ...args) {
+      console.log(`[${level}] ${message}`, ...args);
+    },
+  }
 });

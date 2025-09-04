@@ -4,6 +4,8 @@ const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
+config.resolver.unstable_enablePackageExports = true
+
 // Configure server to serve .well-known directory
 config.server = {
   ...config.server,
