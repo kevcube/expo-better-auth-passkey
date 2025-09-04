@@ -30,6 +30,9 @@
   "author": "kevcube <kevin@icecube.dog> (kevcube)",
   "license": "MIT",
   "homepage": "https://github.com/expo-better-auth-passkey#readme",
+  "overrides": {
+    "jose": "^6.0.0"
+  },
   "files": [
     "build",
     "android",
@@ -39,8 +42,8 @@
   ],
   "devDependencies": {
     "@types/react": "~19.1.10",
-    "better-auth": "^1.3.7",
-    "expo": "54.0.0-preview.13",
+    "better-auth": "^1.3.8",
+    "expo": "54.0.0-preview.14",
     "expo-module-scripts": "^4.1.10",
     "react-native": "0.81.1"
   },
@@ -52,9 +55,5 @@
     "react": "*",
     "react-native": "*",
     "nanostores": "*"
-  },
-  "workspaces": [
-    ".",
-    "example"
-  ]
+  }
 }
