@@ -8,7 +8,7 @@ import {
   Alert,
   Button,
 } from "react-native";
-
+import PolyfillCrypto from "react-native-webview-crypto";
 import { authClient } from "@/lib/auth-client";
 
 export default function App() {
@@ -28,15 +28,16 @@ export default function App() {
       const result = await authClient.passkey.addPasskey({
         name: passkeyName.trim(),
       });
-
+      console.log("result", result);
       if (result?.data) {
         Alert.alert("Success", "Passkey created successfully!");
         setPasskeyName("");
       } else {
         Alert.alert(
           "Error",
-          result?.error?.message || "Failed to create passkey"
+          result?.error?.message || "Failed to create passkey",
         );
+        console.error(result, result?.error);
       }
     } catch (error) {
       Alert.alert("Error", "An unexpected error occurred");
@@ -48,13 +49,14 @@ export default function App() {
     try {
       // For demo purposes, using a placeholder email
       // In a real app, you'd get this from user input or stored session
-      const result = await (authClient as any).signIn.passkey({
+      const result = await authClient.signIn.passkey({
         email: "user@example.com",
       });
 
       if (result.data) {
         Alert.alert("Success", "Logged in successfully!");
       } else {
+        console.error(result);
         Alert.alert("Error", result.error?.message || "Failed to login");
       }
     } catch (error) {
@@ -64,48 +66,52 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    await authClient.signOut();
+    const result = await authClient.signOut();
+    console.log("signout", result);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Better Auth Passkey Demo</Text>
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
-          {isPending
-            ? "Loading session..."
-            : session
-            ? `Signed in as ${
-                session.user?.email ?? session.user?.name ?? session.user?.id
-              }`
-            : "Signed out"}
-        </Text>
-      </View>
+      <PolyfillCrypto />
+        <Text style={styles.title}>Better Auth Passkey Demo</Text>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            {isPending
+              ? "Loading session..."
+              : session
+                ? `Signed in as ${
+                    session.user?.email ??
+                    session.user?.name ??
+                    session.user?.id
+                  }`
+                : "Signed out"}
+          </Text>
+        </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Passkey Name:</Text>
-        <TextInput
-          style={styles.input}
-          value={passkeyName}
-          onChangeText={setPasskeyName}
-          placeholder="Enter passkey name"
-          placeholderTextColor="#999"
-        />
-      </View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Passkey Name:</Text>
+          <TextInput
+            style={styles.input}
+            value={passkeyName}
+            onChangeText={setPasskeyName}
+            placeholder="Enter passkey name"
+            placeholderTextColor="#999"
+          />
+        </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={handleCreatePasskey}>
-          <Text style={styles.buttonText}>Create Passkey</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button} onPress={handleCreatePasskey}>
+            <Text style={styles.buttonText}>Create Passkey</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, styles.loginButton]}
-          onPress={handleLoginWithPasskey}
-        >
-          <Text style={styles.buttonText}>Login with Passkey</Text>
-        </TouchableOpacity>
-      </View>
-      <Button title="Sign Out" onPress={handleSignOut} />
+          <TouchableOpacity
+            style={[styles.button, styles.loginButton]}
+            onPress={handleLoginWithPasskey}
+          >
+            <Text style={styles.buttonText}>Login with Passkey</Text>
+          </TouchableOpacity>
+        </View>
+        <Button title="Sign Out" onPress={handleSignOut} />
     </View>
   );
 }

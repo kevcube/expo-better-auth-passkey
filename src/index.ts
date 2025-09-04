@@ -1,4 +1,4 @@
-// Main export: drop-in replacement for better-auth's passkeyClient
+// Main export: unified client for web and native
 export { expoPasskeyClient } from "./plugin";
 
 // Re-export WebAuthn types from @simplewebauthn for convenience
