@@ -14,6 +14,9 @@ export default function App() {
   const [passkeyName, setPasskeyName] = useState("");
   const { data: session, isPending } = authClient.useSession();
 
+  // Check if passkey functionality is available
+  const isPasskeyAvailable = !!(authClient.signIn.passkey && authClient.passkey.addPasskey);
+
   const handleCreatePasskey = async () => {
     if (!passkeyName.trim()) {
       Alert.alert("Error", "Please enter a passkey name");
@@ -24,6 +27,13 @@ export default function App() {
       if (!session) {
         await authClient.signIn.anonymous();
       }
+
+      // Check if passkey registration is available
+      if (!authClient.passkey.addPasskey) {
+        Alert.alert("Error", "Passkey registration is not available on this platform");
+        return;
+      }
+
       const result = await authClient.passkey.addPasskey({
         name: passkeyName.trim(),
       });
@@ -46,6 +56,12 @@ export default function App() {
 
   const handleLoginWithPasskey = async () => {
     try {
+      // Check if passkey sign-in is available
+      if (!authClient.signIn.passkey) {
+        Alert.alert("Error", "Passkey authentication is not available on this platform");
+        return;
+      }
+
       // For demo purposes, using a placeholder email
       // In a real app, you'd get this from user input or stored session
       const result = await authClient.signIn.passkey({
@@ -98,16 +114,27 @@ export default function App() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={handleCreatePasskey}>
+          <TouchableOpacity
+            style={[styles.button, !isPasskeyAvailable && styles.disabledButton]}
+            onPress={handleCreatePasskey}
+            disabled={!isPasskeyAvailable}
+          >
             <Text style={styles.buttonText}>Create Passkey</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.loginButton]}
+            style={[styles.button, styles.loginButton, !isPasskeyAvailable && styles.disabledButton]}
             onPress={handleLoginWithPasskey}
+            disabled={!isPasskeyAvailable}
           >
             <Text style={styles.buttonText}>Login with Passkey</Text>
           </TouchableOpacity>
+
+          {!isPasskeyAvailable && (
+            <Text style={styles.warningText}>
+              Passkey functionality is not available on this platform
+            </Text>
+          )}
         </View>
         <Button title="Sign Out" onPress={handleSignOut} />
     </View>
@@ -174,5 +201,15 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: "#2b5fb8",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+    opacity: 0.6,
+  },
+  warningText: {
+    color: "#ff6b6b",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 8,
   },
 });

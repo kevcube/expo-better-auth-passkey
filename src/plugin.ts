@@ -28,28 +28,10 @@ export const expoPasskeyClient = () => {
 		id: baseClient.id,
 		$InferServerPlugin: baseClient.$InferServerPlugin,
 		getActions: ($fetch: BetterFetch) => {
-			const isWeb = Platform.OS === "web";
-			const webPasskeyActions = getPasskeyActions($fetch, { $listPasskeys });
-			const nativePasskeyActions = isWeb
-				? null
-				: getPasskeyActionsNative($fetch, { $listPasskeys });
-			const baseActions = baseClient.getActions($fetch);
-
-			return {
-				signIn: {
-					passkey: isWeb
-						? webPasskeyActions.signIn.passkey
-						: nativePasskeyActions.signIn.passkey,
-				},
-				passkey: {
-					addPasskey: isWeb
-						? baseActions.passkey.addPasskey
-						: nativePasskeyActions!.passkey.addPasskey,
-				},
-				$Infer: {} as {
-					Passkey: Passkey;
-				},
-			};
+			return Platform.select({
+					web: getPasskeyActions($fetch, { $listPasskeys }),
+					default: getPasskeyActionsNative($fetch, { $listPasskeys }),
+				})
 		},
 		getAtoms: baseClient.getAtoms,
 		pathMethods: baseClient.pathMethods,
