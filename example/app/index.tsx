@@ -38,15 +38,16 @@ export default function App() {
         name: passkeyName.trim(),
       });
       console.log("result", result);
-      if (result?.data) {
-        Alert.alert("Success", "Passkey created successfully!");
-        setPasskeyName("");
-      } else {
+      if (result?.error) {
         Alert.alert(
           "Error",
           result?.error?.message || "Failed to create passkey",
         );
         console.error(result, result?.error);
+      } else {
+        console.log("Passkey created", result);
+        Alert.alert("Success", "Passkey created successfully!");
+        setPasskeyName("");
       }
     } catch (error) {
       Alert.alert("Error", "An unexpected error occurred");

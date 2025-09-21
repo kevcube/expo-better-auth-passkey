@@ -64,7 +64,7 @@ The module internally forwards every server call to Better Auth and only overrid
 
 ## Server configuration checklist
 
-- **Better Auth passkey plugin**: Configure `rpID`, `rpName`, and `origin` to match the public domain your app will use.
+- **Better Auth passkey plugin**: Configure `rpID`, `rpName`, and `origin` to match the public domain your app will use. When you ship Android builds, add an `android:apk-key-hash:<BASE64_SHA256>` entry for every signing certificate so Better Auth can validate APK-originated passkey requests.
 - **Trusted origins**: Include all app schemes you intend to use, e.g. `myapp://`, `https://localhost`, and any Expo dev tunnels. Example:
   ```ts
   trustedOrigins: [
@@ -114,9 +114,11 @@ Optional hints supported by this module:
 1. **Min requirements**: Android 9 (API 28) or newer with Credential Manager 1.3.0+. Users need Google Play Services 23.30+ for passkeys.
 2. **App signing SHA-256**: Obtain your app signing certificate fingerprint. For debug builds:
    ```bash
-   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep 'SHA256:'
-   ```
-   Replace this with your Play App Signing fingerprint for production.
+ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep 'SHA256:'
+  ```
+ Replace this with your Play App Signing fingerprint for production. Convert each raw SHA-256 fingerprint to base64 and add `android:apk-key-hash:<BASE64_SHA256>` entries to the Better Auth `origin` array so the server trusts credentials coming from your APK.
+5. **Optional**: If you want to forward your Android app's HTTPS origin when calling Credential Manager, request the `android.permission.CREDENTIAL_MANAGER_SET_ORIGIN` permission (API 34+). The module automatically falls back when the permission is missing, so you can skip it if you don't need per-domain attribution.
+6. The Android bridge rewrites `user.displayName` to match `user.name` before presenting the system dialog so that each passkey nickname shows up without conflicting with the persistent Better Auth `displayName` field.
 3. Host `https://auth.example.com/.well-known/assetlinks.json` with content:
    ```json
    [

@@ -1,15 +1,25 @@
 package github.kevcube.betterauthreactnativepasskey
 
 import android.app.Activity
-import androidx.credentials.*
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.credentials.CreatePublicKeyCredentialRequest
+import androidx.credentials.CreatePublicKeyCredentialResponse
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetPublicKeyCredentialOption
+import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.CreateCredentialCancellationException
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -17,32 +27,62 @@ class BetterAuthReactNativePasskeyModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("BetterAuthReactNativePasskey")
 
-    AsyncFunction("registerPasskey") { options: Map<String, Any?>, _: Boolean?, promise: Promise ->
+    AsyncFunction("registerPasskey") { payload: Map<String, Any?>, promise: Promise ->
       val activity: Activity = appContext.currentActivity ?: run {
         promise.reject("NO_ACTIVITY", "No current Activity available", null)
         return@AsyncFunction
       }
 
-      val optionsJson = JSONObject(options["optionsJSON"] as Map<String, Any?>).toString()
-      val rpId = (options["optionsJSON"] as Map<String, Any?>)
-        .let { it["rp"] as Map<String, Any?> }
-        .let { it["id"] as String }
+      val optionsJsonObject = when (val raw = payload["optionsJSON"]) {
+        is Map<*, *> -> JSONObject(raw)
+        is JSONObject -> raw
+        is String -> JSONObject(raw)
+        else -> {
+          promise.reject("INVALID_OPTIONS", "optionsJSON must be an object", null)
+          return@AsyncFunction
+        }
+      }
+
+      // Ensure the system dialog shows the passkey nickname (user.name) even if displayName is static
+      optionsJsonObject.optJSONObject("user")?.let { userObject ->
+        val passkeyNickname = userObject.optString("name")
+        if (!passkeyNickname.isNullOrEmpty()) {
+          userObject.put("displayName", passkeyNickname)
+        }
+      }
+
+      val optionsJson = optionsJsonObject.toString()
+      val rpId = optionsJsonObject.optJSONObject("rp")?.optString("id").orEmpty()
+      if (rpId.isBlank()) {
+        promise.reject("INVALID_OPTIONS", "rp.id is required", null)
+        return@AsyncFunction
+      }
+
+      val useAutoRegister = payload["useAutoRegister"] as? Boolean ?: false
+      val origin = "https://$rpId"
+      val originForRequest = origin.takeIf { canUseSetOrigin(activity) }
 
       CoroutineScope(Dispatchers.Main).launch {
         try {
           val credentialManager = CredentialManager.create(activity)
-          val request = CreatePublicKeyCredentialRequest(optionsJson)
+          val request = buildCreatePublicKeyCredentialRequest(
+            optionsJson = optionsJson,
+            origin = originForRequest,
+            preferImmediatelyAvailable = useAutoRegister,
+            autoSelectAllowed = useAutoRegister,
+          )
           val result = credentialManager.createCredential(activity, request)
 
           when (result) {
             is CreatePublicKeyCredentialResponse -> {
               val response = JSONObject(result.registrationResponseJson)
 
-              // Add missing transports and set web origin
               response.getJSONObject("response").apply {
-                if (!has("transports")) put("transports", JSONArray().put("internal"))
+                if (!has("transports")) {
+                  put("transports", JSONArray().put("internal"))
+                }
               }
-              response.put("origin", "https://$rpId")
+              response.put("origin", origin)
 
               promise.resolve(response.toMap())
             }
@@ -58,26 +98,48 @@ class BetterAuthReactNativePasskeyModule : Module() {
       }
     }
 
-    AsyncFunction("authenticatePasskey") { options: Map<String, Any?>, _: Boolean?, promise: Promise ->
+    AsyncFunction("authenticatePasskey") { payload: Map<String, Any?>, promise: Promise ->
       val activity: Activity = appContext.currentActivity ?: run {
         promise.reject("NO_ACTIVITY", "No current Activity available", null)
         return@AsyncFunction
       }
 
-      val optionsJson = JSONObject(options["optionsJSON"] as Map<String, Any?>).toString()
-      val rpId = (options["optionsJSON"] as Map<String, Any?>)["rpId"] as String
+      val optionsJsonObject = when (val raw = payload["optionsJSON"]) {
+        is Map<*, *> -> JSONObject(raw)
+        is JSONObject -> raw
+        is String -> JSONObject(raw)
+        else -> {
+          promise.reject("INVALID_OPTIONS", "optionsJSON must be an object", null)
+          return@AsyncFunction
+        }
+      }
+
+      val optionsJson = optionsJsonObject.toString()
+      val rpId = optionsJsonObject.optString("rpId")
+      if (rpId.isNullOrBlank()) {
+        promise.reject("INVALID_OPTIONS", "rpId is required", null)
+        return@AsyncFunction
+      }
+
+      val useAutofill = payload["useAutofill"] as? Boolean ?: false
+      val origin = "https://$rpId"
+      val originForRequest = origin.takeIf { canUseSetOrigin(activity) }
 
       CoroutineScope(Dispatchers.Main).launch {
         try {
           val credentialManager = CredentialManager.create(activity)
           val getOption = GetPublicKeyCredentialOption(optionsJson)
-          val getRequest = GetCredentialRequest(listOf(getOption))
+          val getRequest = buildGetCredentialRequest(
+            option = getOption,
+            origin = originForRequest,
+            preferImmediatelyAvailable = useAutofill,
+          )
           val result = credentialManager.getCredential(activity, getRequest)
 
           when (val credential = result.credential) {
             is PublicKeyCredential -> {
               val response = JSONObject(credential.authenticationResponseJson)
-              response.put("origin", "https://$rpId")
+              response.put("origin", origin)
               promise.resolve(response.toMap())
             }
             else -> promise.reject("UNEXPECTED_TYPE", "Unexpected credential type: ${credential.type}", null)
@@ -119,4 +181,54 @@ private fun JSONArray.toList(): List<Any?> {
     })
   }
   return list
+}
+
+private fun buildCreatePublicKeyCredentialRequest(
+  optionsJson: String,
+  origin: String?,
+  preferImmediatelyAvailable: Boolean,
+  autoSelectAllowed: Boolean,
+): CreatePublicKeyCredentialRequest {
+  return try {
+    CreatePublicKeyCredentialRequest(
+      optionsJson,
+      null,
+      preferImmediatelyAvailable,
+      origin,
+      autoSelectAllowed,
+    )
+  } catch (_: SecurityException) {
+    CreatePublicKeyCredentialRequest(
+      optionsJson,
+      null,
+      preferImmediatelyAvailable,
+      null,
+      autoSelectAllowed,
+    )
+  }
+}
+
+private fun buildGetCredentialRequest(
+  option: GetPublicKeyCredentialOption,
+  origin: String?,
+  preferImmediatelyAvailable: Boolean,
+): GetCredentialRequest {
+  val builder = GetCredentialRequest.Builder().addCredentialOption(option)
+  if (preferImmediatelyAvailable) {
+    builder.setPreferImmediatelyAvailableCredentials(true)
+  }
+  if (origin != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    try {
+      builder.setOrigin(origin)
+    } catch (_: SecurityException) {
+      // Apps without the SET_ORIGIN permission fall back to the default origin.
+    }
+  }
+  return builder.build()
+}
+
+private fun canUseSetOrigin(activity: Activity): Boolean {
+  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
+  val permission = "android.permission.CREDENTIAL_MANAGER_SET_ORIGIN"
+  return ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
 }

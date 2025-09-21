@@ -15,11 +15,15 @@ export const auth = betterAuth({
 		passkey({
 			rpID: process.env.EXPO_PUBLIC_NGROK_URL,
 			rpName: "Expo Better Auth Passkey Example",
-			origin: `https://${process.env.EXPO_PUBLIC_NGROK_URL}`,
+			origin: [
+				"android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w",
+				`https://${process.env.EXPO_PUBLIC_NGROK_URL}`,
+			],
 		}),
 		expo(),
 	],
 	trustedOrigins: [
+		"android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w",
 		`https://${process.env.EXPO_PUBLIC_NGROK_URL}`,
 		"better-auth-react-native-passkey-example://",
 		"github.kevcube.betterauthreactnativepasskey.example://",

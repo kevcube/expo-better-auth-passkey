@@ -43,8 +43,8 @@ extension BetterAuthReactNativePasskeyModule {
     let userId = BetterAuthReactNativePasskeyModule.fromBase64URL(creation.user.id)!
 
     let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: creation.rp.id)
-    let displayName = creation.user.displayName
-    let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: displayName, userID: userId)
+    let passkeyName = creation.user.name.isEmpty ? creation.user.displayName : creation.user.name
+    let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: passkeyName, userID: userId)
 
     // Exclusions
     let descriptors: [ASAuthorizationPlatformPublicKeyCredentialDescriptor] = creation.excludeCredentials.map { cred in
