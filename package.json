@@ -30,11 +30,6 @@
   "author": "kevcube <kevin@icecube.dog> (kevcube)",
   "license": "MIT",
   "homepage": "https://github.com/expo-better-auth-passkey#readme",
-  "overrides": {
-    "jose": "^6.0.0",
-    "@noble/hashes": "^2.0.0",
-    "@noble/ciphers": "^2.0.0"
-  },
   "files": [
     "build",
     "android",
