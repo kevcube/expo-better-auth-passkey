@@ -6,97 +6,117 @@ import androidx.credentials.exceptions.CreateCredentialCancellationException
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import expo.modules.kotlin.Promise
 import kotlinx.coroutines.*
-import org.json.JSONObject
 import org.json.JSONArray
+import org.json.JSONObject
 
 class BetterAuthReactNativePasskeyModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
   override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('BetterAuthReactNativePasskey')` in JavaScript.
     Name("BetterAuthReactNativePasskey")
 
+    AsyncFunction("registerPasskey") { options: Map<String, Any?>, _: Boolean?, promise: Promise ->
+      val activity: Activity = appContext.currentActivity ?: run {
+        promise.reject("NO_ACTIVITY", "No current Activity available", null)
+        return@AsyncFunction
+      }
 
-    // Native passkey creation via Credential Manager
-    AsyncFunction("createPasskey") { options: Map<String, Any>, promise: Promise ->
-      val activity: Activity = appContext.currentActivity
-        ?: throw IllegalStateException("No current Activity available")
-      val credentialManager = CredentialManager.create(activity)
+      val optionsJson = JSONObject(options["optionsJSON"] as Map<String, Any?>).toString()
+      val rpId = (options["optionsJSON"] as Map<String, Any?>)
+        .let { it["rp"] as Map<String, Any?> }
+        .let { it["id"] as String }
 
-      // Convert options map to JSON expected by Android Credentials API
-      // Uses WebAuthn PublicKeyCredentialCreationOptions JSON
-      val requestJson = JSONObject(options).toString()
-      val request = CreatePublicKeyCredentialRequest(requestJson)
-
-      // Launch coroutine to handle suspend function
       CoroutineScope(Dispatchers.Main).launch {
         try {
+          val credentialManager = CredentialManager.create(activity)
+          val request = CreatePublicKeyCredentialRequest(optionsJson)
           val result = credentialManager.createCredential(activity, request)
+
           when (result) {
             is CreatePublicKeyCredentialResponse -> {
-              val registrationJson = result.registrationResponseJson
-              // Parse and ensure transports field exists
-              val jsonResult = JSONObject(registrationJson)
-              val responseObj = jsonResult.getJSONObject("response")
-              if (!responseObj.has("transports")) {
-                responseObj.put("transports", JSONArray().put("internal"))
+              val response = JSONObject(result.registrationResponseJson)
+
+              // Add missing transports and set web origin
+              response.getJSONObject("response").apply {
+                if (!has("transports")) put("transports", JSONArray().put("internal"))
               }
-              promise.resolve(jsonResult.toString())
+              response.put("origin", "https://$rpId")
+
+              promise.resolve(response.toMap())
             }
-            else -> {
-              promise.reject("INVALID_CREDENTIAL", "Unexpected credential type", null)
-            }
+            else -> promise.reject("UNEXPECTED_TYPE", "Unexpected credential type", null)
           }
         } catch (e: CreateCredentialCancellationException) {
-          promise.reject("CANCELLED", "User cancelled passkey creation", e)
+          promise.reject("CANCELLED", "User cancelled", e)
         } catch (e: CreateCredentialException) {
           promise.reject("CREATE_ERROR", e.message ?: "Failed to create passkey", e)
         } catch (e: Exception) {
-          promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error occurred", e)
+          promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error", e)
         }
       }
     }
 
-    // Native passkey authentication via Credential Manager
-    AsyncFunction("getPasskey") { options: Map<String, Any>, promise: Promise ->
-      val activity: Activity = appContext.currentActivity
-        ?: throw IllegalStateException("No current Activity available")
-      val credentialManager = CredentialManager.create(activity)
+    AsyncFunction("authenticatePasskey") { options: Map<String, Any?>, _: Boolean?, promise: Promise ->
+      val activity: Activity = appContext.currentActivity ?: run {
+        promise.reject("NO_ACTIVITY", "No current Activity available", null)
+        return@AsyncFunction
+      }
 
-      val requestJson = JSONObject(options).toString()
-      val getOption = GetPublicKeyCredentialOption(requestJson)
-      val getRequest = GetCredentialRequest(listOf(getOption))
+      val optionsJson = JSONObject(options["optionsJSON"] as Map<String, Any?>).toString()
+      val rpId = (options["optionsJSON"] as Map<String, Any?>)["rpId"] as String
 
-      // Launch coroutine to handle suspend function
       CoroutineScope(Dispatchers.Main).launch {
         try {
+          val credentialManager = CredentialManager.create(activity)
+          val getOption = GetPublicKeyCredentialOption(optionsJson)
+          val getRequest = GetCredentialRequest(listOf(getOption))
           val result = credentialManager.getCredential(activity, getRequest)
-          val credential = result.credential
-          when (credential) {
+
+          when (val credential = result.credential) {
             is PublicKeyCredential -> {
-              val authenticationJson = credential.authenticationResponseJson
-              promise.resolve(authenticationJson)
+              val response = JSONObject(credential.authenticationResponseJson)
+              response.put("origin", "https://$rpId")
+              promise.resolve(response.toMap())
             }
-            else -> {
-              promise.reject("INVALID_CREDENTIAL", "Unexpected credential type: ${credential.type}", null)
-            }
+            else -> promise.reject("UNEXPECTED_TYPE", "Unexpected credential type: ${credential.type}", null)
           }
         } catch (e: GetCredentialCancellationException) {
-          promise.reject("CANCELLED", "User cancelled passkey authentication", e)
+          promise.reject("CANCELLED", "User cancelled", e)
         } catch (e: GetCredentialException) {
           promise.reject("GET_ERROR", e.message ?: "Failed to get passkey", e)
         } catch (e: Exception) {
-          promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error occurred", e)
+          promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error", e)
         }
       }
     }
-
   }
+}
+
+// Simple JSONObject to Map conversion using Expo's built-in serialization
+private fun JSONObject.toMap(): Map<String, Any?> {
+  val map = mutableMapOf<String, Any?>()
+  keys().forEach { key ->
+    map[key] = when (val value = get(key)) {
+      is JSONObject -> value.toMap()
+      is JSONArray -> value.toList()
+      JSONObject.NULL -> null
+      else -> value
+    }
+  }
+  return map
+}
+
+private fun JSONArray.toList(): List<Any?> {
+  val list = mutableListOf<Any?>()
+  for (i in 0 until length()) {
+    list.add(when (val value = get(i)) {
+      is JSONObject -> value.toMap()
+      is JSONArray -> value.toList()
+      JSONObject.NULL -> null
+      else -> value
+    })
+  }
+  return list
 }

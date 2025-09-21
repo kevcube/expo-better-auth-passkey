@@ -8,7 +8,6 @@ import {
   Alert,
   Button,
 } from "react-native";
-import PolyfillCrypto from "react-native-webview-crypto";
 import { authClient } from "@/lib/auth-client";
 
 export default function App() {
@@ -72,7 +71,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <PolyfillCrypto />
         <Text style={styles.title}>Better Auth Passkey Demo</Text>
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
