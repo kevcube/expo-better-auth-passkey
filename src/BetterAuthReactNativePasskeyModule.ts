@@ -1,21 +1,48 @@
 import type {
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-  RegistrationResponseJSON,
-  AuthenticationResponseJSON,
+	AuthenticationResponseJSON,
+	PublicKeyCredentialCreationOptionsJSON,
+	PublicKeyCredentialRequestOptionsJSON,
+	RegistrationResponseJSON,
 } from "@simplewebauthn/types";
 import { requireNativeModule } from "expo";
 
-interface BetterAuthReactNativePasskeyModule {
-  createPasskey(
-    options: PublicKeyCredentialCreationOptionsJSON
-  ): Promise<RegistrationResponseJSON>;
+interface NativeBetterAuthReactNativePasskeyModule {
+	registerPasskey(
+		optionsJSON: PublicKeyCredentialCreationOptionsJSON,
+		useAutoRegister?: boolean,
+	): Promise<RegistrationResponseJSON>;
 
-  getPasskey(
-    options: PublicKeyCredentialRequestOptionsJSON
-  ): Promise<AuthenticationResponseJSON>;
+	authenticatePasskey(
+		optionsJSON: PublicKeyCredentialRequestOptionsJSON,
+		useAutofill?: boolean,
+	): Promise<AuthenticationResponseJSON>;
 }
 
-export default requireNativeModule<BetterAuthReactNativePasskeyModule>(
-  "BetterAuthReactNativePasskey"
-);
+const NativeModule =
+	requireNativeModule<NativeBetterAuthReactNativePasskeyModule>(
+		"BetterAuthReactNativePasskey",
+	);
+
+const BetterAuthReactNativePasskeyModule = {
+	registerPasskey({
+		optionsJSON,
+		useAutoRegister,
+	}: {
+		optionsJSON: PublicKeyCredentialCreationOptionsJSON;
+		useAutoRegister?: boolean;
+	}) {
+		return NativeModule.registerPasskey(optionsJSON, useAutoRegister);
+	},
+
+	authenticatePasskey({
+		optionsJSON,
+		useAutofill,
+	}: {
+		optionsJSON: PublicKeyCredentialRequestOptionsJSON;
+		useAutofill?: boolean;
+	}) {
+		return NativeModule.authenticatePasskey(optionsJSON, useAutofill);
+	},
+};
+
+export default BetterAuthReactNativePasskeyModule;

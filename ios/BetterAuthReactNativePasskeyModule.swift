@@ -18,117 +18,154 @@ public class BetterAuthReactNativePasskeyModule: Module {
     Name("BetterAuthReactNativePasskey")
 
     // Native passkey creation using ASAuthorizationController
-    AsyncFunction("createPasskey") { (options: [String: Any], promise: Promise) in
-      guard
-        let rp = options["rp"] as? [String: Any],
-        let rpId = rp["id"] as? String ?? rp["name"] as? String,
-        let challengeB64 = options["challenge"] as? String,
-        let user = options["user"] as? [String: Any],
-        let userIdB64 = user["id"] as? String
-      else {
-        promise.reject("ERR_INVALID_OPTIONS", "Missing rp.id, challenge, or user.id")
-        return
-      }
-
-      guard
-        let challenge = BetterAuthReactNativePasskeyModule.fromBase64URL(challengeB64),
-        let userId = BetterAuthReactNativePasskeyModule.fromBase64URL(userIdB64)
-      else {
-        promise.reject("ERR_INVALID_OPTIONS", "Failed to decode challenge or user.id")
-        return
-      }
-
-        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
-      let name = (user["name"] as? String) ?? (user["displayName"] as? String) ?? ""
-      let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: name, userID: userId)
-
-      let delegate = PasskeyDelegate()
-      delegate.onRegistration = { reg in
-        let id = BetterAuthReactNativePasskeyModule.toBase64URL(reg.credentialID)
-
-        var response: [String: Any] = [
-          "clientDataJSON": BetterAuthReactNativePasskeyModule.toBase64URL(reg.rawClientDataJSON),
-          "attestationObject": BetterAuthReactNativePasskeyModule.toBase64URL(reg.rawAttestationObject ?? Data()),
-          "transports": ["internal"]  // iOS always uses internal transport
-        ]
-
-        let result: [String: Any] = [
-          "id": id,
-          "rawId": id,
-          "type": "public-key",
-          "response": response,
-        ]
-        promise.resolve(result)
-      }
-      delegate.onError = { error in
-        promise.reject("ERR_CREATE_PASSKEY", error.localizedDescription)
-      }
-
-      let controller = ASAuthorizationController(authorizationRequests: [request])
-      controller.delegate = delegate
-      controller.presentationContextProvider = delegate
-      delegate.presentationAnchor = BetterAuthReactNativePasskeyModule.presentationAnchor(appContext: self.appContext)
-      controller.performRequests()
-      BetterAuthReactNativePasskeyModule.retain(delegate)
+    // Supports only the wrapped shape from TypeScript: { optionsJSON, useAutoRegister? }
+    AsyncFunction("registerPasskey") { (input: [String: Any], promise: Promise) in
+      self.handleCreatePasskey(input: input, promise: promise)
     }
 
     // Native passkey authentication using ASAuthorizationController
-    AsyncFunction("getPasskey") { (options: [String: Any], promise: Promise) in
-      guard
-        let rpId = options["rpId"] as? String,
-        let challengeB64 = options["challenge"] as? String,
-        let challenge = BetterAuthReactNativePasskeyModule.fromBase64URL(challengeB64)
-      else {
-        promise.reject("ERR_INVALID_OPTIONS", "Missing rpId or challenge")
-        return
-      }
-
-      let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
-      let request = provider.createCredentialAssertionRequest(challenge: challenge)
-
-      if let allowCredentials = options["allowCredentials"] as? [[String: Any]] {
-        let descriptors: [ASAuthorizationPlatformPublicKeyCredentialDescriptor] = allowCredentials.compactMap { cred in
-          guard let idB64 = cred["id"] as? String, let id = BetterAuthReactNativePasskeyModule.fromBase64URL(idB64) else { return nil }
-          return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
-        }
-        if !descriptors.isEmpty {
-          request.allowedCredentials = descriptors
-        }
-      }
-
-      let delegate = PasskeyDelegate()
-      delegate.onAssertion = { asrt in
-        let id = BetterAuthReactNativePasskeyModule.toBase64URL(asrt.credentialID)
-        let userHandle = (asrt.userID?.isEmpty == false) ? BetterAuthReactNativePasskeyModule.toBase64URL(asrt.userID!) : nil
-        let result: [String: Any] = [
-          "id": id,
-          "rawId": id,
-          "type": "public-key",
-          "response": [
-            "clientDataJSON": BetterAuthReactNativePasskeyModule.toBase64URL(asrt.rawClientDataJSON),
-            "authenticatorData": BetterAuthReactNativePasskeyModule.toBase64URL(asrt.rawAuthenticatorData),
-            "signature": BetterAuthReactNativePasskeyModule.toBase64URL(asrt.signature),
-            "userHandle": userHandle as Any,
-          ],
-        ]
-        promise.resolve(result)
-      }
-      delegate.onError = { error in
-        promise.reject("ERR_GET_PASSKEY", error.localizedDescription)
-      }
-
-      let controller = ASAuthorizationController(authorizationRequests: [request])
-      controller.delegate = delegate
-      controller.presentationContextProvider = delegate
-      delegate.presentationAnchor = BetterAuthReactNativePasskeyModule.presentationAnchor(appContext: self.appContext)
-      controller.performRequests()
-      BetterAuthReactNativePasskeyModule.retain(delegate)
+    // Supports only the wrapped shape from TypeScript: { optionsJSON, useAutofill? }
+    AsyncFunction("authenticatePasskey") { (input: [String: Any], promise: Promise) in
+      self.handleGetPasskey(input: input, promise: promise)
     }
-
   }
 }
 
 // MARK: - Helpers
+
+extension BetterAuthReactNativePasskeyModule {
+  fileprivate func handleCreatePasskey(input: [String: Any], promise: Promise) {
+    // Input must be @simplewebauthn/types PublicKeyCredentialCreationOptionsJSON
+    let options = input["optionsJSON"] as! [String: Any]
+    let creation = PublicKeyCredentialCreationOptionsJSONLite(dict: options)
+
+    let challenge = BetterAuthReactNativePasskeyModule.fromBase64URL(creation.challenge)!
+    let userId = BetterAuthReactNativePasskeyModule.fromBase64URL(creation.user.id)!
+
+    let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: creation.rp.id)
+    let passkeyName = creation.user.name.isEmpty ? creation.user.displayName : creation.user.name
+    let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: passkeyName, userID: userId)
+
+    // Exclusions
+    let descriptors: [ASAuthorizationPlatformPublicKeyCredentialDescriptor] = creation.excludeCredentials.map { cred in
+      let id = BetterAuthReactNativePasskeyModule.fromBase64URL(cred.id)!
+      return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
+    }
+    if #available(iOS 17.4, *) {
+      request.excludedCredentials = descriptors
+    }
+
+    // User verification preference (optional)
+    if let uvPref = creation.authenticatorSelection?.userVerification {
+      request.userVerificationPreference = uvPref.toASUserVerificationPreference()
+    }
+
+    let delegate = PasskeyDelegate()
+    delegate.onRegistration = { reg in
+      let id = BetterAuthReactNativePasskeyModule.toBase64URL(reg.credentialID)
+      let response = RegistrationResponseJSONLite.ResponseFields(
+        clientDataJSON: BetterAuthReactNativePasskeyModule.toBase64URL(reg.rawClientDataJSON),
+        attestationObject: BetterAuthReactNativePasskeyModule.toBase64URL(reg.rawAttestationObject ?? Data()),
+        transports: ["internal"]
+      )
+      let result = RegistrationResponseJSONLite(
+        id: id,
+        rawId: id,
+        type: "public-key",
+        response: response,
+        authenticatorAttachment: "platform",
+        clientExtensionResults: [:]
+      )
+      promise.resolve(result.toDictionary())
+    }
+    delegate.onError = { error in
+      promise.reject("ERR_CREATE_PASSKEY", error.localizedDescription)
+    }
+
+    let controller = ASAuthorizationController(authorizationRequests: [request])
+    controller.delegate = delegate
+    controller.presentationContextProvider = delegate
+    delegate.presentationAnchor = BetterAuthReactNativePasskeyModule.presentationAnchor(appContext: self.appContext)
+
+    // Optional hint for auto register, when supported
+    let useAutoRegister = (input["useAutoRegister"] as? Bool) ?? false
+    if #available(iOS 16.0, macOS 13.0, *) {
+      var options: ASAuthorizationController.RequestOptions = []
+      if useAutoRegister {
+        options.insert(.preferImmediatelyAvailableCredentials)
+      }
+      controller.performRequests(options: options)
+    } else {
+      controller.performRequests()
+    }
+
+    BetterAuthReactNativePasskeyModule.retain(delegate)
+  }
+
+  fileprivate func handleGetPasskey(input: [String: Any], promise: Promise) {
+    // Only support wrapped shape from TS bridge
+    let options = input["optionsJSON"] as! [String: Any]
+    let req = PublicKeyCredentialRequestOptionsJSONLite(dict: options)
+    let challenge = BetterAuthReactNativePasskeyModule.fromBase64URL(req.challenge)!
+
+    let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: req.rpId)
+    let request = provider.createCredentialAssertionRequest(challenge: challenge)
+
+    // Allow list
+    let descriptors: [ASAuthorizationPlatformPublicKeyCredentialDescriptor] = req.allowCredentials.map { cred in
+      let id = BetterAuthReactNativePasskeyModule.fromBase64URL(cred.id)!
+      return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
+    }
+    request.allowedCredentials = descriptors
+
+    // User verification preference
+    if let uv = req.userVerification {
+      request.userVerificationPreference = uv.toASUserVerificationPreference()
+    }
+
+    let delegate = PasskeyDelegate()
+    delegate.onAssertion = { asrt in
+      let id = BetterAuthReactNativePasskeyModule.toBase64URL(asrt.credentialID)
+      let userHandle = (asrt.userID?.isEmpty == false) ? BetterAuthReactNativePasskeyModule.toBase64URL(asrt.userID!) : nil
+      let response = AuthenticationResponseJSONLite.ResponseFields(
+        clientDataJSON: BetterAuthReactNativePasskeyModule.toBase64URL(asrt.rawClientDataJSON),
+        authenticatorData: BetterAuthReactNativePasskeyModule.toBase64URL(asrt.rawAuthenticatorData),
+        signature: BetterAuthReactNativePasskeyModule.toBase64URL(asrt.signature),
+        userHandle: userHandle
+      )
+      let result = AuthenticationResponseJSONLite(
+        id: id,
+        rawId: id,
+        type: "public-key",
+        response: response,
+        authenticatorAttachment: "platform",
+        clientExtensionResults: [:]
+      )
+      promise.resolve(result.toDictionary())
+    }
+    delegate.onError = { error in
+      promise.reject("ERR_GET_PASSKEY", error.localizedDescription)
+    }
+
+    let controller = ASAuthorizationController(authorizationRequests: [request])
+    controller.delegate = delegate
+    controller.presentationContextProvider = delegate
+    delegate.presentationAnchor = BetterAuthReactNativePasskeyModule.presentationAnchor(appContext: self.appContext)
+
+    let useAutofill = (input["useAutofill"] as? Bool) ?? false
+    if #available(iOS 16.0, macOS 13.0, *) {
+      var options: ASAuthorizationController.RequestOptions = []
+      if useAutofill {
+        options.insert(.preferImmediatelyAvailableCredentials)
+      }
+      controller.performRequests(options: options)
+    } else {
+      controller.performRequests()
+    }
+
+    BetterAuthReactNativePasskeyModule.retain(delegate)
+  }
+}
 
 private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
   var onRegistration: ((ASAuthorizationPlatformPublicKeyCredentialRegistration) -> Void)?
@@ -201,4 +238,15 @@ extension BetterAuthReactNativePasskeyModule {
   private static var retainedDelegates: [PasskeyDelegate] = []
   fileprivate static func retain(_ d: PasskeyDelegate) { retainedDelegates.append(d) }
   fileprivate static func release(_ d: PasskeyDelegate) { retainedDelegates.removeAll { $0 === d } }
+}
+
+// MARK: - String helpers
+private extension String {
+  func toASUserVerificationPreference() -> ASAuthorizationPublicKeyCredentialUserVerificationPreference {
+    switch self.lowercased() {
+    case "required": return .required
+    case "discouraged": return .discouraged
+    default: return .preferred
+    }
+  }
 }
