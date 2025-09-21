@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.0.1...v1.1.0) (2025-09-21)
+
+
+### Features
+
+* **android,iOS:** use user.name for passkey name over displayName ([7c21ae4](https://github.com/kevcube/expo-better-auth-passkey/commit/7c21ae4aa71d04e68d5183b5944002de3b8db0e8))
+* fix android execution ([#7](https://github.com/kevcube/expo-better-auth-passkey/issues/7)) ([7c21ae4](https://github.com/kevcube/expo-better-auth-passkey/commit/7c21ae4aa71d04e68d5183b5944002de3b8db0e8))
+* **iOS:** add better type helpers ([7c21ae4](https://github.com/kevcube/expo-better-auth-passkey/commit/7c21ae4aa71d04e68d5183b5944002de3b8db0e8))
+* **plugin:** exactly match current better-auth plugin ([7c21ae4](https://github.com/kevcube/expo-better-auth-passkey/commit/7c21ae4aa71d04e68d5183b5944002de3b8db0e8))
+* use bun workspace ([eecc788](https://github.com/kevcube/expo-better-auth-passkey/commit/eecc788bacb5fd62c6600c4c26389463eceddd64))
+
+
+### Bug Fixes
+
+* **example:** use multiple origins for passkey because android sends origin of package hash ([7c21ae4](https://github.com/kevcube/expo-better-auth-passkey/commit/7c21ae4aa71d04e68d5183b5944002de3b8db0e8))
+
 ## [1.0.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.0.0...v1.0.1) (2025-09-03)
 
 
