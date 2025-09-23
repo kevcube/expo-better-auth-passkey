@@ -7,15 +7,15 @@ import type {
 import { requireNativeModule } from "expo";
 
 interface NativeBetterAuthReactNativePasskeyModule {
-	registerPasskey(
-		optionsJSON: PublicKeyCredentialCreationOptionsJSON,
-		useAutoRegister?: boolean,
-	): Promise<RegistrationResponseJSON>;
+	registerPasskey(params: {
+		optionsJSON: PublicKeyCredentialCreationOptionsJSON;
+		useAutoRegister?: boolean;
+	}): Promise<RegistrationResponseJSON>;
 
-	authenticatePasskey(
-		optionsJSON: PublicKeyCredentialRequestOptionsJSON,
-		useAutofill?: boolean,
-	): Promise<AuthenticationResponseJSON>;
+	authenticatePasskey(params: {
+		optionsJSON: PublicKeyCredentialRequestOptionsJSON;
+		useAutofill?: boolean;
+	}): Promise<AuthenticationResponseJSON>;
 }
 
 const NativeModule =
@@ -31,7 +31,7 @@ const BetterAuthReactNativePasskeyModule = {
 		optionsJSON: PublicKeyCredentialCreationOptionsJSON;
 		useAutoRegister?: boolean;
 	}) {
-		return NativeModule.registerPasskey(optionsJSON, useAutoRegister);
+		return NativeModule.registerPasskey({ optionsJSON, useAutoRegister });
 	},
 
 	authenticatePasskey({
@@ -41,7 +41,7 @@ const BetterAuthReactNativePasskeyModule = {
 		optionsJSON: PublicKeyCredentialRequestOptionsJSON;
 		useAutofill?: boolean;
 	}) {
-		return NativeModule.authenticatePasskey(optionsJSON, useAutofill);
+		return NativeModule.authenticatePasskey({ optionsJSON, useAutofill });
 	},
 };
 
