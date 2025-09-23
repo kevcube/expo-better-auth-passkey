@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.1.0...v1.2.0) (2025-09-23)
+
+
+### Features
+
+* Update parameter structure for registerPasskey and authenticatePasskey ([#10](https://github.com/kevcube/expo-better-auth-passkey/issues/10)) ([c1190b5](https://github.com/kevcube/expo-better-auth-passkey/commit/c1190b58373cd90f8d4545b5ab2f25a7294bf235))
+
 ## [1.1.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.0.1...v1.1.0) (2025-09-21)
 
 
