@@ -23,13 +23,13 @@
     "passkey",
     "webauthn"
   ],
-  "repository": "https://github.com/expo-better-auth-passkey",
+  "repository": "https://github.com/kevcube/expo-better-auth-passkey",
   "bugs": {
-    "url": "https://github.com/expo-better-auth-passkey/issues"
+    "url": "https://github.com/kevcube/expo-better-auth-passkey/issues"
   },
   "author": "kevcube <kevin@icecube.dog> (kevcube)",
   "license": "MIT",
-  "homepage": "https://github.com/expo-better-auth-passkey#readme",
+  "homepage": "https://github.com/kevcube/expo-better-auth-passkey#readme",
   "files": [
     "build",
     "android",
