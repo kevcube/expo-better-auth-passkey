@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.2.0...v1.2.1) (2025-09-25)
+
+
+### Bug Fixes
+
+* broken doclinks in npm ([#13](https://github.com/kevcube/expo-better-auth-passkey/issues/13)) ([d4fd3f8](https://github.com/kevcube/expo-better-auth-passkey/commit/d4fd3f8ce94d67b50c9fc66b889be57090dbe141))
+
 ## [1.2.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.1.0...v1.2.0) (2025-09-23)
 
 
