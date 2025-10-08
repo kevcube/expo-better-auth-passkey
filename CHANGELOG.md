@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.2.1...v1.3.0) (2025-10-08)
+
+
+### Features
+
+* pass actual error message for signInPasskey function ([#15](https://github.com/kevcube/expo-better-auth-passkey/issues/15)) ([2eb423f](https://github.com/kevcube/expo-better-auth-passkey/commit/2eb423f6b1c48c70a314fa5bf99a10de8c3a638c))
+
 ## [1.2.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.2.0...v1.2.1) (2025-09-25)
 
 
