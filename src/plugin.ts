@@ -84,11 +84,15 @@ export const getPasskeyActionsNative = (
 			return verified;
 		} catch (e) {
 			console.error("Passkey sign-in error:", e);
+			let errorMessage = "auth cancelled";
+			if (e instanceof Error) {
+				errorMessage = e.message;
+			}
 			return {
 				data: null,
 				error: {
 					code: "AUTH_CANCELLED",
-					message: "auth cancelled",
+					message: errorMessage,
 					status: 400,
 					statusText: "BAD_REQUEST",
 				},
