@@ -82,8 +82,10 @@ export const getPasskeyActionsNative = (
         method: "POST",
       });
 
-      $listPasskeys.set(Math.random());
-      $store.notify("$sessionSignal");
+      if (verified.data) {
+        $listPasskeys.set(Math.random());
+        $store.notify("$sessionSignal");
+      }
       return verified;
     } catch (e) {
       console.error("Passkey sign-in error:", e);
