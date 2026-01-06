@@ -54,7 +54,6 @@ export const getPasskeyActionsNative = (
   const signInPasskey = async (
     opts?: {
       autoFill?: boolean;
-      email?: string;
       fetchOptions?: BetterFetchOption;
     },
     options?: BetterFetchOption,
