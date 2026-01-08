@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.3.0...v1.4.0) (2026-01-08)
+
+
+### Features
+
+* support standalone passkey plugin. ([#17](https://github.com/kevcube/expo-better-auth-passkey/issues/17)) ([5db8537](https://github.com/kevcube/expo-better-auth-passkey/commit/5db853701e5ddba8e3577bc3ad9ed0813be0b712))
+
 ## [1.3.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.2.1...v1.3.0) (2025-10-08)
 
 
