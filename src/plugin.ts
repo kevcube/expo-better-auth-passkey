@@ -4,12 +4,10 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/types";
-import type { ClientStore, Session, User } from "better-auth";
-import type {
-  BetterAuthClientPlugin,
-  BetterFetch,
-  BetterFetchOption,
-} from "better-auth/client";
+import type { BetterAuthClientPlugin, ClientStore } from "@better-auth/core";
+import type { BetterFetch } from "@better-fetch/fetch";
+import type { Session, User } from "better-auth";
+import type { BetterFetchOption } from "better-auth/client";
 import { atom } from "nanostores";
 import { Platform } from "react-native";
 
@@ -28,7 +26,7 @@ export const expoPasskeyClient = () => {
   return {
     id: baseClient.id,
     $InferServerPlugin: baseClient.$InferServerPlugin,
-    getActions: ($fetch: BetterFetch, $store: ClientStore) => {
+    getActions: ($fetch: BetterFetch, $store: ClientStore, _options) => {
       if (Platform.OS === "web") {
         return getPasskeyActions($fetch, { $listPasskeys, $store });
       } else {
