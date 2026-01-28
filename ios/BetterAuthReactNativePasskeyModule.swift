@@ -220,18 +220,29 @@ extension BetterAuthReactNativePasskeyModule {
   }
 
   static func presentationAnchor(appContext: AppContext?) -> ASPresentationAnchor? {
-    #if os(iOS)
-    if let vc = appContext?.utilities?.currentViewController() {
-      return vc.view?.window
+    // Must run on main thread because currentViewController() uses MainActor.assumeIsolated
+    var result: ASPresentationAnchor?
+    let work = {
+      #if os(iOS)
+      if let vc = appContext?.utilities?.currentViewController() {
+        result = vc.view?.window
+      } else {
+        result = UIApplication.shared.connectedScenes
+          .compactMap { $0 as? UIWindowScene }
+          .flatMap { $0.windows }
+          .first { $0.isKeyWindow }
+      }
+      #elseif os(macOS)
+      // For macOS, return the main window
+      result = NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
+      #endif
     }
-    return UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .flatMap { $0.windows }
-      .first { $0.isKeyWindow }
-    #elseif os(macOS)
-    // For macOS, return the main window
-    return NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
-    #endif
+    if Thread.isMainThread {
+      work()
+    } else {
+      DispatchQueue.main.sync { work() }
+    }
+    return result
   }
 
   // Keep delegates alive while ASAuthorizationController is operating
