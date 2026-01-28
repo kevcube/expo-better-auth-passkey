@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.0...v1.4.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* run `presentationAnchor` on main thread ([#19](https://github.com/kevcube/expo-better-auth-passkey/issues/19)) ([369b086](https://github.com/kevcube/expo-better-auth-passkey/commit/369b086b1071d4b53b277fe74cfa821e37ba67eb))
+
 ## [1.4.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.3.0...v1.4.0) (2026-01-08)
 
 
