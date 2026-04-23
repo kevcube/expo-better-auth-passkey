@@ -40,17 +40,17 @@
   "devDependencies": {
     "@simplewebauthn/types": "*",
     "@types/react": "~19.1.10",
-    "better-auth": "^1.4.9",
-    "@better-auth/passkey": "^1.4.9",
-    "expo": "54.0.6",
-    "expo-module-scripts": "^4.1.10",
+    "better-auth": "^1.6.8",
+    "@better-auth/passkey": "^1.6.8",
+    "expo": "55.0.17",
+    "expo-module-scripts": "^55.0.2",
     "react-native": "0.81.4"
   },
   "peerDependencies": {
-    "@better-fetch/fetch": "^1.1.18",
-    "better-auth": "^1.4.9",
-    "@better-auth/passkey": "^1.4.9",
-    "expo": "*",
+    "@better-fetch/fetch": "^1.1.21",
+    "better-auth": "^1.6.8",
+    "@better-auth/passkey": "^1.6.8",
+    "expo": "55.0.17",
     "react": "*",
     "react-native": "*",
     "nanostores": "*"
