@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.1...v1.4.2) (2026-04-23)
+
+
+### Bug Fixes
+
+* bump better-auth peer dependency ([#21](https://github.com/kevcube/expo-better-auth-passkey/issues/21)) ([fa01637](https://github.com/kevcube/expo-better-auth-passkey/commit/fa01637488e010764834fac4d700efbb4ba7fc80))
+
 ## [1.4.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.0...v1.4.1) (2026-01-28)
 
 
