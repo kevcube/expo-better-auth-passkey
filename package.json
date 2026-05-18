@@ -50,7 +50,7 @@
     "@better-fetch/fetch": "^1.1.21",
     "better-auth": "^1.6.8",
     "@better-auth/passkey": "^1.6.8",
-    "expo": "55.0.17",
+    "expo": "^55.0.0",
     "react": "*",
     "react-native": "*",
     "nanostores": "*"
