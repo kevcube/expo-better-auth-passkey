@@ -8,6 +8,12 @@
 - **Run single test**: `expo-module test --testNamePattern="test name"`
 - **Example app**: `cd example && npm start` (iOS/Android: `npm run ios`/`npm run android`)
 
+## Expo SDK Testing
+- Use `bunx expo install` for Expo-managed dependency changes
+- Validate compatibility against the latest stable Expo SDK; canary testing supplements but never replaces stable testing
+- After every Expo version change, run `cd example && bunx expo-doctor`
+- Before a native build after an Expo version change, delete `example/ios` and `example/android`, then regenerate both with CNG; never reuse generated projects across SDK versions
+
 ## Code Style Guidelines
 
 ### TypeScript/JavaScript
