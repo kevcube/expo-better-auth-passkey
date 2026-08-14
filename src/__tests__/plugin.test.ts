@@ -1,5 +1,4 @@
 /* eslint-disable import/first */
-import { atom } from "nanostores";
 import { Platform } from "react-native";
 
 const createMockAtom = <T>(initialValue: T) => {
@@ -12,11 +11,6 @@ const createMockAtom = <T>(initialValue: T) => {
     subscribe: jest.fn(),
   };
 };
-
-jest.mock("nanostores", () => ({
-  atom: <T>(initial: T) => createMockAtom(initial),
-}));
-
 // Mock react-native Platform
 jest.mock("react-native", () => ({
   Platform: {
@@ -105,13 +99,17 @@ describe("expoPasskeyClient", () => {
 
 describe("getPasskeyActionsNative", () => {
   let mockFetch: jest.Mock;
-  let $listPasskeys: ReturnType<typeof atom<number>>;
+  let $listPasskeys: {
+    get: () => number;
+    set: (newValue: number) => void;
+    subscribe: jest.Mock;
+  };
   let $store: { notify: jest.Mock };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch = jest.fn();
-    $listPasskeys = atom<number>(0);
+    $listPasskeys = createMockAtom(0);
     $store = { notify: jest.fn() };
   });
 
