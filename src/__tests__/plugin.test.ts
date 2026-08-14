@@ -1,8 +1,6 @@
-// Mock nanostores
+/* eslint-disable import/first */
 import { atom } from "nanostores";
 import { Platform } from "react-native";
-
-import { expoPasskeyClient, getPasskeyActionsNative } from "../plugin";
 
 const createMockAtom = <T>(initialValue: T) => {
   let value = initialValue;
@@ -50,7 +48,7 @@ jest.mock("@better-auth/passkey/client", () => ({
     atomListeners: [],
   }),
 }));
-
+import { expoPasskeyClient, getPasskeyActionsNative } from "../plugin";
 describe("expoPasskeyClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
