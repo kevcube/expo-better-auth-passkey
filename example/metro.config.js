@@ -1,23 +1,53 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require("expo/metro-config");
+const fs = require("fs");
 const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
-config.resolver.unstable_enablePackageExports = true
+const tlsCert = path.join(
+  __dirname,
+  "certs",
+  "macbook-pro.bat-monster.ts.net.crt",
+);
+const tlsKey = path.join(
+  __dirname,
+  "certs",
+  "macbook-pro.bat-monster.ts.net.key",
+);
 
-// Configure server to serve .well-known directory
 config.server = {
   ...config.server,
+  ...(fs.existsSync(tlsCert) && fs.existsSync(tlsKey)
+    ? {
+        tls: {
+          cert: fs.readFileSync(tlsCert),
+          key: fs.readFileSync(tlsKey),
+        },
+      }
+    : {}),
   enhanceMiddleware: (middleware) => {
     return (req, res, next) => {
-      if (req.url === '/.well-known/apple-app-site-association') {
-        const fs = require('fs');
-        const aasaPath = path.join(__dirname, '.well-known', 'apple-app-site-association');
-        if (fs.existsSync(aasaPath)) {
-          const content = fs.readFileSync(aasaPath, 'utf8');
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Cache-Control', 'no-cache');
+      if (
+        req.url === "/.well-known/apple-app-site-association" ||
+        req.url === "/.well-known/assetlinks.json"
+      ) {
+        const fileName = req.url.endsWith("assetlinks.json")
+          ? "assetlinks.json"
+          : "apple-app-site-association";
+        const wellKnownPath = path.join(__dirname, ".well-known", fileName);
+        const publicPath = path.join(
+          __dirname,
+          "public",
+          ".well-known",
+          fileName,
+        );
+        const filePath = fs.existsSync(wellKnownPath)
+          ? wellKnownPath
+          : publicPath;
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath, "utf8");
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-cache");
           res.end(content);
           return;
         }
@@ -26,46 +56,5 @@ config.server = {
     };
   },
 };
-
-// npm v7+ will install ../node_modules/react and ../node_modules/react-native because of peerDependencies.
-// To prevent the incompatible react-native between ./node_modules/react-native and ../node_modules/react-native,
-// excludes the one from the parent folder when bundling.
-config.resolver.blockList = [
-  ...Array.from(config.resolver.blockList ?? []),
-  new RegExp(path.resolve("..", "node_modules", "react")),
-  new RegExp(path.resolve("..", "node_modules", "react-native")),
-  // Avoid pulling in a second copy of Expo or its metro runtime from the parent workspace
-  new RegExp(path.resolve("..", "node_modules", "expo")),
-  new RegExp(path.resolve("..", "node_modules", "@expo", "metro-runtime")),
-];
-
-config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, "./node_modules"),
-  path.resolve(__dirname, "../node_modules"),
-];
-
-config.resolver.extraNodeModules = {
-  "better-auth-react-native-passkey": "..",
-};
-
-config.watchFolders = [path.resolve(__dirname, "..")];
-
-config.transformer.getTransformOptions = async () => ({
-  transform: {
-    experimentalImportSupport: false,
-    inlineRequires: true,
-  },
-});
-
-// Add asset extensions for serving static files
-config.resolver.assetExts = [
-  ...config.resolver.assetExts,
-  // Remove json from asset extensions so it can be imported as JS
-].filter(ext => ext !== 'json');
-
-config.resolver.sourceExts = [
-  ...config.resolver.sourceExts,
-  'json'
-];
 
 module.exports = config;

@@ -1,17 +1,17 @@
 # Agent Guidelines for better-auth-react-native-passkey
 
 ## Build/Test Commands
-- **Build library**: `npm run build` or `expo-module build`
-- **Clean build**: `npm run clean` or `expo-module clean`
-- **Lint code**: `npm run lint` or `expo-module lint`
-- **Run tests**: `npm run test` or `expo-module test`
+- **Build library**: `pnpm build` or `expo-module build`
+- **Clean build**: `pnpm clean` or `expo-module clean`
+- **Lint code**: `pnpm lint` or `expo-module lint`
+- **Run tests**: `pnpm test` or `expo-module test`
 - **Run single test**: `expo-module test --testNamePattern="test name"`
-- **Example app**: `cd example && npm start` (iOS/Android: `npm run ios`/`npm run android`)
+- **Example app**: `cd example && pnpm start` (iOS/Android: `pnpm ios`/`pnpm android`)
 
 ## Expo SDK Testing
-- Use `bunx expo install` for Expo-managed dependency changes
+- Use `pnpm exec expo install` from `example/` for Expo-managed dependency changes
 - Validate compatibility against the latest stable Expo SDK; canary testing supplements but never replaces stable testing
-- After every Expo version change, run `cd example && bunx expo-doctor`
+- After every Expo version change, run `cd example && pnpm dlx expo-doctor`
 - Before a native build after an Expo version change, delete `example/ios` and `example/android`, then regenerate both with CNG; never reuse generated projects across SDK versions
 
 ## Code Style Guidelines
