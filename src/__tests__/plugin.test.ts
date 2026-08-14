@@ -1,4 +1,9 @@
 // Mock nanostores
+import { atom } from "nanostores";
+import { Platform } from "react-native";
+
+import { expoPasskeyClient, getPasskeyActionsNative } from "../plugin";
+
 const createMockAtom = <T>(initialValue: T) => {
   let value = initialValue;
   return {
@@ -40,15 +45,11 @@ jest.mock("@better-auth/passkey/client", () => ({
   passkeyClient: () => ({
     id: "passkey",
     $InferServerPlugin: {},
-    getAtoms: jest.fn(),
+    getAtoms: () => ({ $listPasskeys: createMockAtom(0) }),
     pathMethods: {},
     atomListeners: [],
   }),
 }));
-
-import { Platform } from "react-native";
-import { expoPasskeyClient, getPasskeyActionsNative } from "../plugin";
-import { atom } from "nanostores";
 
 describe("expoPasskeyClient", () => {
   beforeEach(() => {
@@ -157,7 +158,7 @@ describe("getPasskeyActionsNative", () => {
       expect(mockFetch).toHaveBeenNthCalledWith(
         1,
         "/passkey/generate-authenticate-options",
-        { method: "GET" }
+        { method: "GET", throw: false },
       );
 
       // Verify native module was called with correct options
@@ -173,7 +174,8 @@ describe("getPasskeyActionsNative", () => {
         expect.objectContaining({
           body: { response: mockAssertion },
           method: "POST",
-        })
+          throw: false,
+        }),
       );
 
       // Verify store was notified
@@ -224,7 +226,7 @@ describe("getPasskeyActionsNative", () => {
     it("should handle native module authentication error", async () => {
       mockFetch.mockResolvedValueOnce({ data: mockAuthOptions, error: null });
       mockAuthenticatePasskey.mockRejectedValueOnce(
-        new Error("User cancelled")
+        new Error("User cancelled"),
       );
 
       const actions = getPasskeyActionsNative(mockFetch, {
@@ -331,7 +333,7 @@ describe("getPasskeyActionsNative", () => {
       expect(mockFetch).toHaveBeenNthCalledWith(
         1,
         "/passkey/generate-register-options",
-        { method: "GET", query: {} }
+        { method: "GET", query: {}, throw: false },
       );
 
       // Verify native module was called
@@ -347,7 +349,8 @@ describe("getPasskeyActionsNative", () => {
         expect.objectContaining({
           body: { response: mockAttestation, name: undefined },
           method: "POST",
-        })
+          throw: false,
+        }),
       );
 
       expect(result).toEqual({ data: { passkey: mockPasskey }, error: null });
@@ -379,7 +382,8 @@ describe("getPasskeyActionsNative", () => {
             authenticatorAttachment: "platform",
             name: "Work Laptop",
           },
-        }
+          throw: false,
+        },
       );
 
       expect(mockFetch).toHaveBeenNthCalledWith(
@@ -387,7 +391,7 @@ describe("getPasskeyActionsNative", () => {
         "/passkey/verify-registration",
         expect.objectContaining({
           body: { response: mockAttestation, name: "Work Laptop" },
-        })
+        }),
       );
     });
 
@@ -435,7 +439,7 @@ describe("getPasskeyActionsNative", () => {
         error: null,
       });
       mockRegisterPasskey.mockRejectedValueOnce(
-        new Error("Biometric not available")
+        new Error("Biometric not available"),
       );
 
       const actions = getPasskeyActionsNative(mockFetch, {
@@ -448,7 +452,7 @@ describe("getPasskeyActionsNative", () => {
       expect(result).toEqual({
         data: null,
         error: {
-          code: "AUTH_CANCELLED",
+          code: "UNKNOWN_ERROR",
           message: "Biometric not available",
           status: 400,
           statusText: "BAD_REQUEST",
