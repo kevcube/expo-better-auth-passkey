@@ -11,19 +11,27 @@ import type {
 import { registerWebModule, NativeModule } from "expo";
 
 class BetterAuthReactNativePasskeyModule extends NativeModule {
-  async createPasskey(
-    options: PublicKeyCredentialCreationOptionsJSON,
-    useAutoRegister?: boolean,
-  ): Promise<RegistrationResponseJSON> {
-    // Delegate to @simplewebauthn/browser to handle conversions
-    return await startRegistration({ optionsJSON: options, useAutoRegister });
+  async registerPasskey({
+    optionsJSON,
+    useAutoRegister,
+  }: {
+    optionsJSON: PublicKeyCredentialCreationOptionsJSON;
+    useAutoRegister?: boolean;
+  }): Promise<RegistrationResponseJSON> {
+    return await startRegistration({ optionsJSON, useAutoRegister });
   }
 
-  async getPasskey(
-    options: PublicKeyCredentialRequestOptionsJSON,
-    useBrowserAutofill?: boolean,
-  ): Promise<AuthenticationResponseJSON> {
-    return await startAuthentication({ optionsJSON: options, useBrowserAutofill });
+  async authenticatePasskey({
+    optionsJSON,
+    useAutofill,
+  }: {
+    optionsJSON: PublicKeyCredentialRequestOptionsJSON;
+    useAutofill?: boolean;
+  }): Promise<AuthenticationResponseJSON> {
+    return await startAuthentication({
+      optionsJSON,
+      useBrowserAutofill: useAutofill,
+    });
   }
 }
 

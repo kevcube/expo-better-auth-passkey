@@ -1,34 +1,90 @@
 import Foundation
 import AuthenticationServices
 
-// Simplified WebAuthn JSON shapes, assuming inputs conform to @simplewebauthn/types.
+enum PasskeyParseError: LocalizedError {
+  case missing(String)
+  case invalidBase64URL(String)
 
-// MARK: - Creation Options
+  var errorDescription: String? {
+    switch self {
+    case .missing(let field):
+      return "Missing required field: \(field)"
+    case .invalidBase64URL(let field):
+      return "Invalid base64url value for \(field)"
+    }
+  }
+}
 
 struct PKCCreationRP {
   let id: String
-  init(dict: [String: Any]) { self.id = dict["id"] as! String }
+  let name: String?
+
+  init(dict: [String: Any]) throws {
+    guard let id = dict["id"] as? String, !id.isEmpty else {
+      throw PasskeyParseError.missing("rp.id")
+    }
+    self.id = id
+    self.name = dict["name"] as? String
+  }
 }
 
 struct PKCCreationUser {
   let id: String
   let name: String
   let displayName: String
-  init(dict: [String: Any]) {
-    self.id = dict["id"] as! String
-    self.name = dict["name"] as! String
-    self.displayName = dict["displayName"] as! String
+
+  init(dict: [String: Any]) throws {
+    guard let id = dict["id"] as? String, !id.isEmpty else {
+      throw PasskeyParseError.missing("user.id")
+    }
+    guard let name = dict["name"] as? String else {
+      throw PasskeyParseError.missing("user.name")
+    }
+    self.id = id
+    self.name = name
+    self.displayName = (dict["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? name
   }
 }
 
 struct PKCDescriptor {
   let id: String
-  init(dict: [String: Any]) { self.id = dict["id"] as! String }
+  let transports: [String]
+
+  init(dict: [String: Any]) throws {
+    guard let id = dict["id"] as? String, !id.isEmpty else {
+      throw PasskeyParseError.missing("credential.id")
+    }
+    self.id = id
+    self.transports = dict["transports"] as? [String] ?? []
+  }
 }
 
 struct PKCAuthenticatorSelection {
   let userVerification: String?
-  init(dict: [String: Any]) { self.userVerification = dict["userVerification"] as? String }
+  let residentKey: String?
+  let requireResidentKey: Bool?
+  let authenticatorAttachment: String?
+
+  init(dict: [String: Any]) {
+    self.userVerification = dict["userVerification"] as? String
+    self.residentKey = dict["residentKey"] as? String
+    self.requireResidentKey = dict["requireResidentKey"] as? Bool
+    self.authenticatorAttachment = dict["authenticatorAttachment"] as? String
+  }
+}
+
+struct PKCPubKeyCredParam {
+  let alg: Int
+
+  init(dict: [String: Any]) throws {
+    if let alg = dict["alg"] as? Int {
+      self.alg = alg
+    } else if let alg = dict["alg"] as? NSNumber {
+      self.alg = alg.intValue
+    } else {
+      throw PasskeyParseError.missing("pubKeyCredParams.alg")
+    }
+  }
 }
 
 struct PublicKeyCredentialCreationOptionsJSONLite {
@@ -37,13 +93,24 @@ struct PublicKeyCredentialCreationOptionsJSONLite {
   let user: PKCCreationUser
   let excludeCredentials: [PKCDescriptor]
   let authenticatorSelection: PKCAuthenticatorSelection?
+  let attestation: String?
+  let pubKeyCredParams: [PKCPubKeyCredParam]
 
-  init(dict: [String: Any]) {
-    self.rp = PKCCreationRP(dict: dict["rp"] as! [String: Any])
-    self.challenge = dict["challenge"] as! String
-    self.user = PKCCreationUser(dict: dict["user"] as! [String: Any])
+  init(dict: [String: Any]) throws {
+    guard let rpDict = dict["rp"] as? [String: Any] else {
+      throw PasskeyParseError.missing("rp")
+    }
+    guard let challenge = dict["challenge"] as? String, !challenge.isEmpty else {
+      throw PasskeyParseError.missing("challenge")
+    }
+    guard let userDict = dict["user"] as? [String: Any] else {
+      throw PasskeyParseError.missing("user")
+    }
+    self.rp = try PKCCreationRP(dict: rpDict)
+    self.challenge = challenge
+    self.user = try PKCCreationUser(dict: userDict)
     if let arr = dict["excludeCredentials"] as? [[String: Any]] {
-      self.excludeCredentials = arr.map { PKCDescriptor(dict: $0) }
+      self.excludeCredentials = try arr.map { try PKCDescriptor(dict: $0) }
     } else {
       self.excludeCredentials = []
     }
@@ -52,21 +119,32 @@ struct PublicKeyCredentialCreationOptionsJSONLite {
     } else {
       self.authenticatorSelection = nil
     }
+    self.attestation = dict["attestation"] as? String
+    if let arr = dict["pubKeyCredParams"] as? [[String: Any]] {
+      self.pubKeyCredParams = try arr.map { try PKCPubKeyCredParam(dict: $0) }
+    } else {
+      self.pubKeyCredParams = []
+    }
   }
 }
 
-// MARK: - Request Options
 struct PublicKeyCredentialRequestOptionsJSONLite {
   let rpId: String
   let challenge: String
   let allowCredentials: [PKCDescriptor]
   let userVerification: String?
 
-  init(dict: [String: Any]) {
-    self.rpId = dict["rpId"] as! String
-    self.challenge = dict["challenge"] as! String
+  init(dict: [String: Any]) throws {
+    guard let rpId = dict["rpId"] as? String, !rpId.isEmpty else {
+      throw PasskeyParseError.missing("rpId")
+    }
+    guard let challenge = dict["challenge"] as? String, !challenge.isEmpty else {
+      throw PasskeyParseError.missing("challenge")
+    }
+    self.rpId = rpId
+    self.challenge = challenge
     if let arr = dict["allowCredentials"] as? [[String: Any]] {
-      self.allowCredentials = arr.map { PKCDescriptor(dict: $0) }
+      self.allowCredentials = try arr.map { try PKCDescriptor(dict: $0) }
     } else {
       self.allowCredentials = []
     }
@@ -74,7 +152,6 @@ struct PublicKeyCredentialRequestOptionsJSONLite {
   }
 }
 
-// MARK: - Registration Response JSON
 struct RegistrationResponseJSONLite {
   struct ResponseFields {
     let clientDataJSON: String
@@ -92,9 +169,9 @@ struct RegistrationResponseJSONLite {
 
   let id: String
   let rawId: String
-  let type: String // "public-key"
+  let type: String
   let response: ResponseFields
-  let authenticatorAttachment: String? // "platform"
+  let authenticatorAttachment: String?
   let clientExtensionResults: [String: Any]
 
   func toDictionary() -> [String: Any] {
@@ -110,7 +187,6 @@ struct RegistrationResponseJSONLite {
   }
 }
 
-// MARK: - Authentication Response JSON
 struct AuthenticationResponseJSONLite {
   struct ResponseFields {
     let clientDataJSON: String
@@ -131,9 +207,9 @@ struct AuthenticationResponseJSONLite {
 
   let id: String
   let rawId: String
-  let type: String // "public-key"
+  let type: String
   let response: ResponseFields
-  let authenticatorAttachment: String? // "platform"
+  let authenticatorAttachment: String?
   let clientExtensionResults: [String: Any]
 
   func toDictionary() -> [String: Any] {
