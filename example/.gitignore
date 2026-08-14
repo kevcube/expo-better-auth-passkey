@@ -38,3 +38,6 @@ yarn-error.*
 
 android
 ios
+
+# Tailscale TLS material
+certs/
