@@ -12,8 +12,17 @@ const apiOrigin =
   rpId === "localhost"
     ? "http://localhost:8081"
     : `https://${rpId}:8081`;
-const webAuthnOrigin =
-  rpId === "localhost" ? apiOrigin : `https://${rpId}`;
+
+const allowedOrigins = [
+  "android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w",
+  apiOrigin,
+  `https://${rpId}`,
+  `https://${rpId}:8081`,
+  "https://localhost:8081",
+  "http://localhost:8081",
+  "http://localhost",
+  "https://localhost",
+];
 
 export const auth = betterAuth({
   appName: "Expo Better Auth Passkey Example",
@@ -26,20 +35,14 @@ export const auth = betterAuth({
     passkey({
       rpID: rpId,
       rpName: "Expo Better Auth Passkey Example",
-      origin: [
-        "android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w",
-        webAuthnOrigin,
-      ],
+      origin: allowedOrigins,
     }),
     expo(),
   ],
   trustedOrigins: [
-    "android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w",
-    apiOrigin,
-    webAuthnOrigin,
+    ...allowedOrigins,
     "better-auth-react-native-passkey-example://",
     "github.kevcube.betterauthreactnativepasskey.example://",
-    "http://localhost:8081",
     "http://kevins-laptop.local:8081",
     "http://kbp.local:8081",
   ],
