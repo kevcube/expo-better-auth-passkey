@@ -24,7 +24,7 @@ Expo/React Native drop-in replacement for the Better Auth [`passkeyClient`](http
 ### Prerequisites
 
 1. A Better Auth server configured with the `passkey` plugin. Make sure the server runs on HTTPS with a hostname that matches the relying party ID (`rpID`).
-2. Expo SDK 49 or newer (tested with 54). For React Native CLI users, Expo Modules Autolinking must be set up.
+2. Expo SDK 55 or newer (tested with 57). For React Native CLI users, Expo Modules Autolinking must be set up.
 3. `nanostores` available in your app (Better Auth already depends on it).
 
 ### Install the package
@@ -32,9 +32,9 @@ Expo/React Native drop-in replacement for the Better Auth [`passkeyClient`](http
 ```bash
 npm install expo-better-auth-passkey
 # or
-yarn add expo-better-auth-passkey
+pnpm add expo-better-auth-passkey
 # or
-bun add expo-better-auth-passkey
+yarn add expo-better-auth-passkey
 ```
 
 The native module is autolinked. If you use a bare/React Native CLI project, run `npx pod-install` after installing.
@@ -73,7 +73,7 @@ The module internally forwards every server call to Better Auth and only overrid
     'com.example.myapp://',
   ]
   ```
-- **HTTPS only**: Passkeys require secure origins. Use a tunneling service (ngrok, localhost HTTPS) during development.
+- **HTTPS only**: Passkeys require secure origins. During development, terminate TLS in front of Metro — Tailscale Serve (`tailscale serve --bg 8081` on a MagicDNS name) or a tunnel. Set that hostname as `rpID` / `origin`.
 
 ## Platform-specific setup
 
