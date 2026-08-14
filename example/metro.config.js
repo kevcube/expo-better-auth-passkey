@@ -4,6 +4,21 @@ const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
+const defaultResolveRequest = config.resolver.resolveRequest;
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "tslib") {
+    return {
+      filePath: require.resolve("tslib/tslib.js"),
+      type: "sourceFile",
+    };
+  }
+  if (defaultResolveRequest) {
+    return defaultResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 const tlsCert = path.join(
   __dirname,
   "certs",
