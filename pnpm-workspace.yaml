@@ -1,0 +1,22 @@
+packages:
+  - example
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.15'
+  - '@expo/config-plugins@57.0.8'
+  - '@expo/metro-runtime@57.0.10'
+  - '@expo/prebuild-config@57.0.12'
+  - '@expo/router-server@57.0.6'
+  - '@expo/ui@57.0.11'
+  - babel-preset-expo@57.0.7
+  - expo-asset@57.0.11
+  - expo-constants@57.0.11
+  - expo-dev-client@57.0.12
+  - expo-dev-launcher@57.0.12
+  - expo-dev-menu@57.0.12
+  - expo-file-system@57.0.3
+  - expo-linking@57.0.6
+  - expo-modules-autolinking@57.0.10
+  - expo-modules-core@57.0.11
+  - expo-router@57.0.13
+  - expo-server@57.0.3
+  - expo@57.0.13

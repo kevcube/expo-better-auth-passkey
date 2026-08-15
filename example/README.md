@@ -1,39 +1,61 @@
 # Better Auth RN Passkey – Example
 
-Simple steps to run the example with a local Postgres database, apply migrations with the Better Auth CLI, and start the Expo app.
+Passkeys need a stable HTTPS hostname that matches the WebAuthn `rpID`. This example is set up for Tailscale HTTPS on a MagicDNS name.
 
 ## 1) Start Postgres
-- From the `example/` folder run:
-- `docker compose up -d`
-- This starts Postgres on `localhost:5432` with:
-  - user: `auth`, password: `auth`, database: `auth`
 
-Optional: verify status with `docker compose ps`.
+From `example/`:
+
+```bash
+docker compose up -d
+```
+
+Postgres listens on `localhost:5432` (`auth` / `auth` / `auth`).
 
 ## 2) Run Better Auth migrations
-- Create a `.env` (in `example/`) with your connection string:
-- `DATABASE_URL=postgres://auth:auth@localhost:5432/auth`
-- Run migrations using the Better Auth CLI:
-- `npx @better-auth/cli migrate`
 
-Notes:
-- The CLI infers your Better Auth config from `lib/auth.ts`.
-- Re-run `migrate` whenever schema changes or on a fresh database.
+```bash
+pnpm dlx @better-auth/cli migrate
+```
 
-## 3) Start the Expo app
-- Install deps (first time only):
-- `npm install`
-- Start dev server:
-- `npm start`
-- Launch platform targets:
-  - iOS: `npm run ios`
-  - Android: `npm run android`
-  - Web: `npm run web`
+The CLI reads `lib/auth.ts`. Re-run `migrate` after schema changes or on a fresh database.
 
-The Better Auth server in this example uses Postgres via Kysely (see `lib/auth.ts`). The `baseURL` is `http://localhost:8081` during development.
+## 3) Expose Metro over Tailscale TLS
 
-## 4) Handy commands
-- Stop and remove containers/volumes:
-- `docker compose down -v`
-- View Postgres logs:
-- `docker compose logs -f postgres`
+1. Find your MagicDNS name: `tailscale status --json` → `Self.DNSName` (strip the trailing dot).
+2. Put that hostname in `.env`:
+
+```bash
+EXPO_PUBLIC_PASSKEY_RP_ID=kbp.tailnet-name.ts.net
+```
+
+3. Start the app, then serve it over HTTPS:
+
+```bash
+pnpm start
+tailscale serve --bg 8081
+```
+
+`tailscale serve` terminates TLS for `https://<magicdns>` and proxies to Metro. That hostname becomes both `baseURL` and `rpID`.
+
+Associated domains use `?mode=developer`. On the phone: Settings → Developer → Associated Domains Development. The device must be on the tailnet so it can fetch `/.well-known/apple-app-site-association`.
+
+Need Apple’s CDN to fetch the AASA file without developer mode? Use `tailscale funnel --bg 8081` instead of `serve`.
+
+## 4) Native run
+
+The example is pinned to stable Expo 57 for compatibility testing. After changing Expo versions, discard generated native projects and regenerate them with that SDK's default CNG template:
+
+```bash
+rm -rf ios android
+pnpm exec expo prebuild
+pnpm ios
+# or
+pnpm android
+```
+
+## Handy commands
+
+- Stop Postgres: `docker compose down -v`
+- Postgres logs: `docker compose logs -f postgres`
+- Clear Tailscale serve: `tailscale serve reset`
