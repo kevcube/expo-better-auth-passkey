@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.3...v1.5.0) (2026-08-15)
+
+
+### Features
+
+* support Expo 57 and enhance native passkey ceremonies ([#29](https://github.com/kevcube/expo-better-auth-passkey/issues/29)) ([a0ad71f](https://github.com/kevcube/expo-better-auth-passkey/commit/a0ad71f8a6fd55c672e0a326906ff96940905025))
+
 ## [1.4.3](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.2...v1.4.3) (2026-05-18)
 
 
