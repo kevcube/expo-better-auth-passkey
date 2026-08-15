@@ -1,6 +1,6 @@
 # expo-better-auth-passkey
 
-Expo/React Native drop-in replacement for the Better Auth [`passkeyClient`](https://github.com/better-auth/better-auth) that works everywhere Better Auth runs today: Web, Android, and iOS. macOS shares the same native implementation but still needs wider community testing—pull requests and reports are welcome.
+Expo/React Native drop-in replacement for the Better Auth [`passkeyClient`](https://github.com/better-auth/better-auth) that works everywhere Better Auth runs today: Web, Android, and iOS. macOS shares the same native implementation but still needs wider community testing—pull requests and reports are welcome. codex test
 
 ## Why this module
 
