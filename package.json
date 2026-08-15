@@ -2,6 +2,7 @@
   "name": "expo-better-auth-passkey",
   "version": "1.4.3",
   "description": "Expo native passkey support for better-auth",
+  "packageManager": "pnpm@11.21.0",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
@@ -38,21 +39,31 @@
     "expo-module.config.json"
   ],
   "devDependencies": {
-    "@simplewebauthn/types": "*",
-    "@types/react": "~19.1.10",
-    "better-auth": "^1.6.8",
-    "@better-auth/passkey": "^1.6.8",
-    "expo": "55.0.17",
-    "expo-module-scripts": "^55.0.2",
-    "react-native": "0.81.4"
+    "@better-auth/core": "^1.6.27",
+    "@better-auth/passkey": "^1.6.27",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.2.0",
+    "better-auth": "^1.6.27",
+    "eslint": "^9.39.5",
+    "eslint-config-universe": "^14.3.0",
+    "expo": "^57.0.13",
+    "expo-module-scripts": "^56.0.3",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
   },
   "peerDependencies": {
-    "@better-fetch/fetch": "^1.1.21",
-    "better-auth": "^1.6.8",
-    "@better-auth/passkey": "^1.6.8",
-    "expo": "^55.0.0",
+    "@better-auth/passkey": ">=1.4.9",
+    "@better-fetch/fetch": ">=1.1.18",
+    "@simplewebauthn/browser": ">=10.0.0",
+    "better-auth": ">=1.4.9",
+    "expo": ">=55.0.0",
     "react": "*",
-    "react-native": "*",
-    "nanostores": "*"
+    "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "@simplewebauthn/browser": {
+      "optional": true
+    }
   }
 }

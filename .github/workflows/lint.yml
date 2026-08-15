@@ -13,6 +13,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun i
-      - run: bun lint
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
