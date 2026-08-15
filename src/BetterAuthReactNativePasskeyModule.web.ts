@@ -7,7 +7,7 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
-} from "@simplewebauthn/types";
+} from "@simplewebauthn/browser";
 import { registerWebModule, NativeModule } from "expo";
 
 class BetterAuthReactNativePasskeyModule extends NativeModule {

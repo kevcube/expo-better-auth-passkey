@@ -13,7 +13,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
-} from "@simplewebauthn/types";
+} from "@simplewebauthn/browser";
 import type { Session, User } from "better-auth/types";
 import { Platform } from "react-native";
 
