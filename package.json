@@ -50,7 +50,8 @@
     "expo": "^57.0.13",
     "expo-module-scripts": "^56.0.3",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.2",
+    "typescript": "~6.0.3"
   },
   "peerDependencies": {
     "@better-auth/passkey": ">=1.4.9",
