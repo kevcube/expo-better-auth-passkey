@@ -13,6 +13,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
+  WebAuthnErrorCode,
 } from "@simplewebauthn/browser";
 import type { Session, User } from "better-auth/types";
 import { Platform } from "react-native";
@@ -42,25 +43,33 @@ export const expoPasskeyClient = (): BetterAuthClientPlugin => {
   } satisfies BetterAuthClientPlugin;
 };
 
-const nativeError = (error: unknown): { code: string; message: string } => {
-  if (error instanceof Error && error.message) {
-    const code =
-      "code" in error && typeof error.code === "string"
-        ? error.code
-        : "UNKNOWN_ERROR";
-    return { code, message: error.message };
-  }
-  if (error && typeof error === "object") {
-    const record = error as { code?: unknown; message?: unknown };
-    if (typeof record.message === "string" && record.message) {
-      return {
-        code: typeof record.code === "string" ? record.code : "UNKNOWN_ERROR",
-        message: record.message,
-      };
-    }
-  }
-  return { code: "AUTH_CANCELLED", message: "auth cancelled" };
+// Native rejections cross the Expo bridge without WebAuthnError's prototype.
+// Only recognize SimpleWebAuthn codes, not arbitrary platform error codes.
+const webAuthnErrorCodes: Record<WebAuthnErrorCode, true> = {
+  ERROR_CEREMONY_ABORTED: true,
+  ERROR_INVALID_DOMAIN: true,
+  ERROR_INVALID_RP_ID: true,
+  ERROR_INVALID_USER_ID_LENGTH: true,
+  ERROR_MALFORMED_PUBKEYCREDPARAMS: true,
+  ERROR_AUTHENTICATOR_GENERAL_ERROR: true,
+  ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT: true,
+  ERROR_AUTHENTICATOR_MISSING_USER_VERIFICATION_SUPPORT: true,
+  ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: true,
+  ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG: true,
+  ERROR_AUTO_REGISTER_USER_VERIFICATION_FAILURE: true,
+  ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY: true,
 };
+
+const isNativeWebAuthnError = (
+  error: unknown,
+): error is { code: WebAuthnErrorCode; message: string } =>
+  error !== null &&
+  typeof error === "object" &&
+  "code" in error &&
+  typeof error.code === "string" &&
+  Object.prototype.hasOwnProperty.call(webAuthnErrorCodes, error.code) &&
+  "message" in error &&
+  typeof error.message === "string";
 
 export const getPasskeyActionsNative = (
   $fetch: BetterFetch,
@@ -90,21 +99,36 @@ export const getPasskeyActionsNative = (
     );
     if (!response.data) return response;
 
+    const mergedExtensions =
+      response.data.extensions || opts?.extensions
+        ? {
+            ...(response.data.extensions || {}),
+            ...(opts?.extensions || {}),
+          }
+        : undefined;
+    let assertion: AuthenticationResponseJSON;
     try {
-      const mergedExtensions =
-        response.data.extensions || opts?.extensions
-          ? {
-              ...(response.data.extensions || {}),
-              ...(opts?.extensions || {}),
-            }
-          : undefined;
-      const assertion = await PasskeyModule.authenticatePasskey({
+      assertion = await PasskeyModule.authenticatePasskey({
         optionsJSON: {
           ...response.data,
           ...(mergedExtensions && { extensions: mergedExtensions }),
         },
         useAutofill: opts?.autoFill,
       });
+    } catch (e) {
+      console.error("Passkey sign-in error:", e);
+      return {
+        data: null,
+        error: {
+          code: isNativeWebAuthnError(e) ? e.code : "AUTH_CANCELLED",
+          message: "Auth cancelled",
+          status: 400,
+          statusText: "BAD_REQUEST",
+        },
+      };
+    }
+
+    try {
       const { clientExtensionResults, ...responseBody } = assertion;
       const verified = await $fetch<{
         session: Session;
@@ -134,13 +158,12 @@ export const getPasskeyActionsNative = (
       }
       return verified;
     } catch (e) {
-      const { code, message } = nativeError(e);
-      console.error("Passkey sign-in error:", e);
+      console.error("Passkey verification error:", e);
       return {
         data: null,
         error: {
-          code: code === "UNKNOWN_ERROR" ? "AUTH_CANCELLED" : code,
-          message,
+          code: "AUTH_CANCELLED",
+          message: "Auth cancelled",
           status: 400,
           statusText: "BAD_REQUEST",
         },
@@ -218,25 +241,35 @@ export const getPasskeyActionsNative = (
       }
       return verified;
     } catch (e) {
-      const { code, message } = nativeError(e);
       console.error("Passkey registration error:", e);
-      if (code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") {
+      if (isNativeWebAuthnError(e)) {
+        if (e.code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") {
+          return {
+            data: null,
+            error: {
+              code: e.code,
+              message: "Previously registered",
+              status: 400,
+              statusText: "BAD_REQUEST",
+            },
+          };
+        }
+        if (e.code === "ERROR_CEREMONY_ABORTED") {
+          return {
+            data: null,
+            error: {
+              code: e.code,
+              message: "Registration cancelled",
+              status: 400,
+              statusText: "BAD_REQUEST",
+            },
+          };
+        }
         return {
           data: null,
           error: {
-            code,
-            message: "Previously registered",
-            status: 400,
-            statusText: "BAD_REQUEST",
-          },
-        };
-      }
-      if (code === "ERROR_CEREMONY_ABORTED" || code === "CANCELLED") {
-        return {
-          data: null,
-          error: {
-            code: "ERROR_CEREMONY_ABORTED",
-            message: "Registration cancelled",
+            code: e.code,
+            message: e.message,
             status: 400,
             statusText: "BAD_REQUEST",
           },
@@ -245,11 +278,10 @@ export const getPasskeyActionsNative = (
       return {
         data: null,
         error: {
-          code: code === "AUTH_CANCELLED" ? "UNKNOWN_ERROR" : code,
-          message,
-          status: code === "AUTH_CANCELLED" ? 500 : 400,
-          statusText:
-            code === "AUTH_CANCELLED" ? "INTERNAL_SERVER_ERROR" : "BAD_REQUEST",
+          code: "UNKNOWN_ERROR",
+          message: e instanceof Error ? e.message : "Unknown error",
+          status: 500,
+          statusText: "INTERNAL_SERVER_ERROR",
         },
       };
     }
