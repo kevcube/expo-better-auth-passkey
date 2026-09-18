@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.5.0...v1.5.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* align native passkey errors with upstream client ([#34](https://github.com/kevcube/expo-better-auth-passkey/issues/34)) ([a50a765](https://github.com/kevcube/expo-better-auth-passkey/commit/a50a765c770bc6c06e3f202156625c5176fcd8f4))
+* resolve prepublishOnly failure under pnpm ([#31](https://github.com/kevcube/expo-better-auth-passkey/issues/31)) ([b120bcf](https://github.com/kevcube/expo-better-auth-passkey/commit/b120bcf543827bbeb6fe00b15a27b15555cbb0fd))
+
 ## [1.5.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.4.3...v1.5.0) (2026-08-15)
 
 
