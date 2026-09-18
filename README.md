@@ -152,9 +152,20 @@ No additional setup beyond the regular Better Auth client. The plugin detects th
 
 ## Error handling & diagnostics
 
-- User cancellations surface as Better Auth errors with code `AUTH_CANCELLED` so you can display friendly UI.
-- Native errors are logged to the console for debugging. Use a production logging service to capture them on devices.
-- Android Credential Manager exceptions (`NO_ACTIVITY`, `CREATE_ERROR`, `GET_ERROR`) bubble through the returned error object—inspect `result.error` when debugging.
+Native actions follow the error handling of `@better-auth/passkey` 1.6.27. Returned errors keep Better Auth's `{ code, message, status, statusText }` shape; no `cause` field is added.
+
+| Failure | `signIn.passkey()` | `passkey.addPasskey()` |
+| --- | --- | --- |
+| Recognized WebAuthn ceremony error | Original WebAuthn code, `"Auth cancelled"`, 400 `BAD_REQUEST` | Original WebAuthn code and message, 400 `BAD_REQUEST` |
+| Native cancellation (`ERROR_CEREMONY_ABORTED`) | `ERROR_CEREMONY_ABORTED`, `"Auth cancelled"`, 400 | `ERROR_CEREMONY_ABORTED`, `"Registration cancelled"`, 400 |
+| Already registered (`ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED`) | Original code, `"Auth cancelled"`, 400 | Original code, `"Previously registered"`, 400 |
+| Internal or unrecognized failure | `AUTH_CANCELLED`, `"Auth cancelled"`, 400 `BAD_REQUEST` | `UNKNOWN_ERROR`, 500 `INTERNAL_SERVER_ERROR`; the `Error` message is preserved, otherwise `"Unknown error"` |
+
+Thrown sign-in verification failures also return `AUTH_CANCELLED`/400, regardless of their code. Error responses returned by the server pass through unchanged.
+
+Unlike earlier releases, platform codes such as `NO_ACTIVITY`, `INVALID_OPTIONS`, `CREATE_ERROR`, `GET_ERROR`, and `ERR_FAILED` no longer appear in returned errors. They use the action-specific fallback above. The obsolete `CANCELLED` code is no longer treated as a WebAuthn cancellation; current native modules emit `ERROR_CEREMONY_ABORTED`.
+
+Native errors are still logged to the console with their original code and message. Use those logs for device diagnostics rather than relying on the normalized sign-in message.
 
 ## Contributing & macOS testing
 
