@@ -43,6 +43,22 @@ export const expoPasskeyClient = (): BetterAuthClientPlugin => {
   } satisfies BetterAuthClientPlugin;
 };
 
+// Bumped by every cancel so an AutoFill sign-in still fetching its options
+// does not start a native request after the caller cancelled it.
+let autoFillGeneration = 0;
+
+/**
+ * Cancels the pending AutoFill-assisted request started by
+ * `signIn.passkey({ autoFill: true })` (iOS 16+ / macOS 13+). That sign-in
+ * resolves with an `ERROR_CEREMONY_ABORTED` error. Resolves without effect
+ * when no assisted request is pending; modal requests are never cancelled.
+ * Android and web have no assisted request of this module's to cancel.
+ */
+export const cancelPasskeyAutoFill = (): Promise<void> => {
+  autoFillGeneration++;
+  return PasskeyModule.cancelPasskeyAutoFill();
+};
+
 // Native rejections cross the Expo bridge without WebAuthnError's prototype.
 // Only recognize SimpleWebAuthn codes, not arbitrary platform error codes.
 const webAuthnErrorCodes: Record<WebAuthnErrorCode, true> = {
@@ -90,6 +106,7 @@ export const getPasskeyActionsNative = (
     },
     options?: ClientFetchOption,
   ) => {
+    const generation = autoFillGeneration;
     const response = await $fetch<PublicKeyCredentialRequestOptionsJSON>(
       "/passkey/generate-authenticate-options",
       {
@@ -98,6 +115,17 @@ export const getPasskeyActionsNative = (
       },
     );
     if (!response.data) return response;
+    if (opts?.autoFill && generation !== autoFillGeneration) {
+      return {
+        data: null,
+        error: {
+          code: "ERROR_CEREMONY_ABORTED",
+          message: "Auth cancelled",
+          status: 400,
+          statusText: "BAD_REQUEST",
+        },
+      };
+    }
 
     const mergedExtensions =
       response.data.extensions || opts?.extensions

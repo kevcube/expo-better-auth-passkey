@@ -33,6 +33,11 @@ class BetterAuthReactNativePasskeyModule extends NativeModule {
       useBrowserAutofill: useAutofill,
     });
   }
+
+  // Web sign-in goes through Better Auth's own SimpleWebAuthn flow, which
+  // aborts a pending browser-autofill request whenever another ceremony
+  // starts. No iOS-style assisted controller exists here to cancel.
+  async cancelPasskeyAutoFill(): Promise<void> {}
 }
 
 export default registerWebModule(
