@@ -167,7 +167,7 @@ No additional setup beyond the regular Better Auth client. The plugin detects th
 
 ## Error handling & diagnostics
 
-Native actions follow the error handling of `@better-auth/passkey` 1.6.27. Returned errors keep Better Auth's `{ code, message, status, statusText }` shape; no `cause` field is added.
+Native actions follow the behavior and error handling of `@better-auth/passkey` 1.7.7, including `addPasskey({ createSession: true })`, which signs the user in when the server returns a session. Returned errors keep Better Auth's `{ code, message, status, statusText }` shape; no `cause` field is added.
 
 | Failure | `signIn.passkey()` | `passkey.addPasskey()` |
 | --- | --- | --- |

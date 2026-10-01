@@ -527,6 +527,50 @@ describe("getPasskeyActionsNative", () => {
       // $listPasskeys should have been updated (set to a random number)
       expect($listPasskeys.get()).not.toBe(initialValue);
     });
+
+    it.each([
+      [
+        "a session is returned",
+        true,
+        { session: { id: "s" }, user: { id: "u" } },
+        true,
+      ],
+      ["no session is returned", false, {}, false],
+    ])(
+      "requests createSession and signals the session only when %s",
+      async (_name, createSession, sessionFields, notified) => {
+        mockFetch
+          .mockResolvedValueOnce({ data: mockRegisterOptions, error: null })
+          .mockResolvedValueOnce({
+            data: { ...mockPasskey, ...sessionFields },
+            error: null,
+          });
+        mockRegisterPasskey.mockResolvedValueOnce(mockAttestation);
+
+        const actions = getPasskeyActionsNative(mockFetch, {
+          $listPasskeys,
+          $store,
+        });
+        await actions.passkey.addPasskey({ name: "Phone", createSession });
+
+        expect(mockFetch).toHaveBeenNthCalledWith(
+          2,
+          "/passkey/verify-registration",
+          expect.objectContaining({
+            body: {
+              response: mockAttestation,
+              name: "Phone",
+              ...(createSession && { createSession: true }),
+            },
+          }),
+        );
+        if (notified) {
+          expect($store.notify).toHaveBeenCalledWith("$sessionSignal");
+        } else {
+          expect($store.notify).not.toHaveBeenCalled();
+        }
+      },
+    );
   });
 
   describe("upstream error parity", () => {
