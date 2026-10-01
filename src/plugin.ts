@@ -179,6 +179,7 @@ export const getPasskeyActionsNative = (
       context?: string | null;
       extensions?: AuthenticationExtensionsClientInputs;
       useAutoRegister?: boolean;
+      createSession?: boolean;
       returnWebAuthnResponse?: boolean;
     },
     fetchOpts?: ClientFetchOption,
@@ -210,15 +211,22 @@ export const getPasskeyActionsNative = (
       });
       const { clientExtensionResults, ...responseBody } = attestation;
 
-      const verified = await $fetch<Passkey>("/passkey/verify-registration", {
+      const verified = await $fetch<
+        Passkey & { session?: Session; user?: User }
+      >("/passkey/verify-registration", {
         ...opts?.fetchOptions,
         ...fetchOpts,
-        body: { response: responseBody, name: opts?.name },
+        body: {
+          response: responseBody,
+          name: opts?.name,
+          ...(opts?.createSession && { createSession: true }),
+        },
         method: "POST",
         throw: false,
       });
       if (!verified.data) return verified;
       $listPasskeys.set(Math.random());
+      if (verified.data.session) $store.notify("$sessionSignal");
       if (opts?.returnWebAuthnResponse) {
         return {
           ...verified,
