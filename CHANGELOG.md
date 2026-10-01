@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.5.1...v1.6.0) (2026-10-01)
+
+
+### Features
+
+* cancel pending AutoFill passkey requests ([#36](https://github.com/kevcube/expo-better-auth-passkey/issues/36)) ([62303b2](https://github.com/kevcube/expo-better-auth-passkey/commit/62303b2bc37b9cb82841af8110de3639a610023b)), closes [#35](https://github.com/kevcube/expo-better-auth-passkey/issues/35)
+
+
+### Bug Fixes
+
+* clean up codebase and restore macOS builds ([#38](https://github.com/kevcube/expo-better-auth-passkey/issues/38)) ([14bfe2c](https://github.com/kevcube/expo-better-auth-passkey/commit/14bfe2c113049bcc2181e1c9b33eadf1e3b155b5))
+
 ## [1.5.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.5.0...v1.5.1) (2026-09-18)
 
 
