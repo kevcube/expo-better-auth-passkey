@@ -85,7 +85,6 @@ export default function App() {
         <Text style={styles.infoText}>
           rpID:{" "}
           {process.env.EXPO_PUBLIC_PASSKEY_RP_ID ||
-            process.env.EXPO_PUBLIC_NGROK_URL ||
             "localhost (set EXPO_PUBLIC_PASSKEY_RP_ID)"}
         </Text>
       </View>

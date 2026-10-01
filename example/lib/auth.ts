@@ -4,10 +4,7 @@ import { betterAuth } from "better-auth";
 import { anonymous } from "better-auth/plugins/anonymous";
 import { Pool } from "pg";
 
-const rpId =
-  process.env.EXPO_PUBLIC_PASSKEY_RP_ID ||
-  process.env.EXPO_PUBLIC_NGROK_URL ||
-  "localhost";
+const rpId = process.env.EXPO_PUBLIC_PASSKEY_RP_ID || "localhost";
 const apiOrigin =
   rpId === "localhost"
     ? "http://localhost:8081"

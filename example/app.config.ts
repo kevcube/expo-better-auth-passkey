@@ -1,5 +1,4 @@
-const rpId =
-  process.env.EXPO_PUBLIC_PASSKEY_RP_ID || process.env.EXPO_PUBLIC_NGROK_URL;
+const rpId = process.env.EXPO_PUBLIC_PASSKEY_RP_ID;
 
 export default {
   expo: {

@@ -20,35 +20,6 @@ interface NativeBetterAuthReactNativePasskeyModule {
   cancelPasskeyAutoFill(): Promise<void>;
 }
 
-const NativeModule =
-  requireNativeModule<NativeBetterAuthReactNativePasskeyModule>(
-    "BetterAuthReactNativePasskey",
-  );
-
-const BetterAuthReactNativePasskeyModule = {
-  registerPasskey({
-    optionsJSON,
-    useAutoRegister,
-  }: {
-    optionsJSON: PublicKeyCredentialCreationOptionsJSON;
-    useAutoRegister?: boolean;
-  }) {
-    return NativeModule.registerPasskey({ optionsJSON, useAutoRegister });
-  },
-
-  authenticatePasskey({
-    optionsJSON,
-    useAutofill,
-  }: {
-    optionsJSON: PublicKeyCredentialRequestOptionsJSON;
-    useAutofill?: boolean;
-  }) {
-    return NativeModule.authenticatePasskey({ optionsJSON, useAutofill });
-  },
-
-  cancelPasskeyAutoFill() {
-    return NativeModule.cancelPasskeyAutoFill();
-  },
-};
-
-export default BetterAuthReactNativePasskeyModule;
+export default requireNativeModule<NativeBetterAuthReactNativePasskeyModule>(
+  "BetterAuthReactNativePasskey",
+);

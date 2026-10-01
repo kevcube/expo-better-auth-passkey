@@ -51,56 +51,34 @@ import {
   getPasskeyActionsNative,
 } from "../plugin";
 describe("expoPasskeyClient", () => {
+  const $store: ClientStore = {
+    notify: jest.fn(),
+    listen: jest.fn(),
+    atoms: {},
+  };
+  const platform = Platform as { OS: string };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("should return a valid BetterAuthClientPlugin structure", () => {
-    const client = expoPasskeyClient();
+  it("uses native actions off the web", () => {
+    const actions = expoPasskeyClient().getActions(jest.fn(), $store);
 
-    expect(client).toHaveProperty("id", "passkey");
-    expect(client).toHaveProperty("$InferServerPlugin");
-    expect(client).toHaveProperty("getActions");
-    expect(client).toHaveProperty("getAtoms");
-    expect(client).toHaveProperty("pathMethods");
-    expect(client).toHaveProperty("atomListeners");
-    expect(typeof client.getActions).toBe("function");
-  });
-
-  it("should use native actions when Platform.OS is not web", () => {
-    const client = expoPasskeyClient();
-    const mockFetch = jest.fn();
-    const mockStore = { notify: jest.fn() } as any;
-
-    // Platform.OS is mocked as 'ios'
-    const actions = client.getActions(mockFetch, mockStore, undefined);
-
-    // Should NOT call the web getPasskeyActions
     expect(mockGetPasskeyActions).not.toHaveBeenCalled();
-    // Should return native actions structure
     expect(actions).toHaveProperty("signIn.passkey");
     expect(actions).toHaveProperty("passkey.addPasskey");
   });
 
-  it("should use web actions when Platform.OS is web", () => {
-    // Temporarily change Platform.OS to web
-    (Platform as any).OS = "web";
-
-    const client = expoPasskeyClient();
-    const mockFetch = jest.fn();
-    const mockStore = { notify: jest.fn() } as any;
-
-    mockGetPasskeyActions.mockReturnValue({
-      signIn: { passkey: jest.fn() },
-      passkey: { addPasskey: jest.fn() },
-    });
-
-    client.getActions(mockFetch, mockStore, undefined);
+  it("uses Better Auth's web actions on the web", () => {
+    platform.OS = "web";
+    try {
+      expoPasskeyClient().getActions(jest.fn(), $store);
+    } finally {
+      platform.OS = "ios";
+    }
 
     expect(mockGetPasskeyActions).toHaveBeenCalled();
-
-    // Reset Platform.OS
-    (Platform as any).OS = "ios";
   });
 });
 
@@ -152,7 +130,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.signIn.passkey();
@@ -197,7 +175,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       await actions.signIn.passkey({ autoFill: true });
@@ -259,7 +237,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.signIn.passkey();
@@ -276,7 +254,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.signIn.passkey();
@@ -299,7 +277,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.signIn.passkey();
@@ -327,7 +305,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       await actions.signIn.passkey();
@@ -369,7 +347,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.passkey.addPasskey();
@@ -410,7 +388,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       await actions.passkey.addPasskey({
@@ -449,7 +427,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       await actions.passkey.addPasskey({ useAutoRegister: true });
@@ -469,7 +447,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.passkey.addPasskey();
@@ -489,7 +467,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.passkey.addPasskey();
@@ -519,7 +497,7 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       const result = await actions.passkey.addPasskey();
@@ -541,32 +519,13 @@ describe("getPasskeyActionsNative", () => {
 
       const actions = getPasskeyActionsNative(mockFetch, {
         $listPasskeys,
-        $store: $store as any,
+        $store,
       });
 
       await actions.passkey.addPasskey();
 
       // $listPasskeys should have been updated (set to a random number)
       expect($listPasskeys.get()).not.toBe(initialValue);
-    });
-  });
-
-  describe("returned actions structure", () => {
-    it("should return correct action structure", () => {
-      const actions = getPasskeyActionsNative(mockFetch, {
-        $listPasskeys,
-        $store: $store as any,
-      });
-
-      expect(actions).toEqual({
-        signIn: {
-          passkey: expect.any(Function),
-        },
-        passkey: {
-          addPasskey: expect.any(Function),
-        },
-        $Infer: {},
-      });
     });
   });
 

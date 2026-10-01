@@ -33,10 +33,12 @@
   "homepage": "https://github.com/kevcube/expo-better-auth-passkey#readme",
   "files": [
     "build",
-    "android",
+    "android/build.gradle",
+    "android/src/main",
     "ios",
     "src",
-    "expo-module.config.json"
+    "expo-module.config.json",
+    "!**/__tests__"
   ],
   "devDependencies": {
     "@better-auth/core": "^1.6.27",

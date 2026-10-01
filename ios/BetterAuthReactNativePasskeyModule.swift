@@ -3,19 +3,23 @@ import AuthenticationServices
 
 #if os(iOS)
 import UIKit
-#elseif os(macOS)
+#else
 import AppKit
 #endif
 
 public class BetterAuthReactNativePasskeyModule: Module {
-  // The live AutoFill-assisted request, if any. Only touched on the main queue.
+  // Everything below runs on the main queue, which is also where
+  // AuthenticationServices calls the delegate.
+
+  // ASAuthorizationController holds its delegate weakly, so in-flight
+  // delegates live here until they settle.
+  private var activeDelegates: [PasskeyDelegate] = []
+  // The live AutoFill-assisted request, if any.
   private var pendingAutoFill: (controller: ASAuthorizationController, delegate: PasskeyDelegate)?
 
   public func definition() -> ModuleDefinition {
     Name("BetterAuthReactNativePasskey")
 
-    // Every function runs on main so controller, delegate, and pendingAutoFill
-    // state share the queue AuthenticationServices calls the delegate on.
     AsyncFunction("registerPasskey") { (input: [String: Any], promise: Promise) in
       self.createPasskey(input: input, promise: promise)
     }.runOnQueue(.main)
@@ -52,27 +56,22 @@ public class BetterAuthReactNativePasskeyModule: Module {
     let attachment = (authSelection?["authenticatorAttachment"] as? String)?.lowercased()
     let uvPref = (authSelection?["userVerification"] as? String)?.toUserVerificationPreference() ?? .preferred
     let attestationPref = (options["attestation"] as? String)?.toAttestationPreference() ?? .none
-
-    let excludeDescriptors = (options["excludeCredentials"] as? [[String: Any]]) ?? []
+    let excluded = credentialDescriptors(options["excludeCredentials"])
     var requests: [ASAuthorizationRequest] = []
 
-    // 1. Platform Authenticator Request (Face ID / Touch ID / iCloud Keychain)
+    // Platform authenticator (Face ID / Touch ID / iCloud Keychain)
     if attachment != "cross-platform" {
       let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
       let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: passkeyName, userID: userId)
       request.userVerificationPreference = uvPref
       request.attestationPreference = attestationPref
-
       if #available(iOS 17.4, macOS 14.4, *) {
-        request.excludedCredentials = excludeDescriptors.compactMap { dict -> ASAuthorizationPlatformPublicKeyCredentialDescriptor? in
-          guard let idStr = dict["id"] as? String, let id = fromBase64URL(idStr) else { return nil }
-          return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
-        }
+        request.excludedCredentials = excluded.map(\.platform)
       }
       requests.append(request)
     }
 
-    // 2. Security Key Request (FIDO2 USB / NFC / BLE)
+    // Security key (FIDO2 USB / NFC / BLE)
     if attachment != "platform" {
       let provider = ASAuthorizationSecurityKeyPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
       let request = provider.createCredentialRegistrationRequest(
@@ -85,22 +84,13 @@ public class BetterAuthReactNativePasskeyModule: Module {
       request.attestationPreference = attestationPref
       request.residentKeyPreference = authSelection?.toResidentKeyPreference() ?? .preferred
 
-      let rawParams = (options["pubKeyCredParams"] as? [[String: Any]]) ?? []
-      let algs: [Int] = rawParams.compactMap { dict in
-        if let alg = dict["alg"] as? Int { return alg }
-        if let alg = dict["alg"] as? NSNumber { return alg.intValue }
-        return nil
+      let algs = ((options["pubKeyCredParams"] as? [[String: Any]]) ?? []).compactMap {
+        ($0["alg"] as? NSNumber)?.intValue
       }
-      let finalAlgs = algs.isEmpty ? [-7, -257] : algs
-      request.credentialParameters = finalAlgs.map {
+      request.credentialParameters = (algs.isEmpty ? [-7, -257] : algs).map {
         ASAuthorizationPublicKeyCredentialParameters(algorithm: ASCOSEAlgorithmIdentifier($0))
       }
-
-      request.excludedCredentials = excludeDescriptors.compactMap { dict -> ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor? in
-        guard let idStr = dict["id"] as? String, let id = fromBase64URL(idStr) else { return nil }
-        let transports = (dict["transports"] as? [String])?.toSecurityKeyTransports() ?? [.usb, .nfc, .bluetooth]
-        return ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor(credentialID: id, transports: transports)
-      }
+      request.excludedCredentials = excluded.map(\.securityKey)
       requests.append(request)
     }
 
@@ -130,26 +120,17 @@ public class BetterAuthReactNativePasskeyModule: Module {
     }
 
     let uvPref = (options["userVerification"] as? String)?.toUserVerificationPreference() ?? .preferred
-    let allowDescriptors = (options["allowCredentials"] as? [[String: Any]]) ?? []
+    let allowed = credentialDescriptors(options["allowCredentials"])
 
-    // Platform request
-    let platformProvider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
-    let platformRequest = platformProvider.createCredentialAssertionRequest(challenge: challenge)
+    let platformRequest = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
+      .createCredentialAssertionRequest(challenge: challenge)
     platformRequest.userVerificationPreference = uvPref
-    platformRequest.allowedCredentials = allowDescriptors.compactMap { dict -> ASAuthorizationPlatformPublicKeyCredentialDescriptor? in
-      guard let idStr = dict["id"] as? String, let id = fromBase64URL(idStr) else { return nil }
-      return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
-    }
+    platformRequest.allowedCredentials = allowed.map(\.platform)
 
-    // Security Key request
-    let securityProvider = ASAuthorizationSecurityKeyPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
-    let securityRequest = securityProvider.createCredentialAssertionRequest(challenge: challenge)
+    let securityRequest = ASAuthorizationSecurityKeyPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
+      .createCredentialAssertionRequest(challenge: challenge)
     securityRequest.userVerificationPreference = uvPref
-    securityRequest.allowedCredentials = allowDescriptors.compactMap { dict -> ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor? in
-      guard let idStr = dict["id"] as? String, let id = fromBase64URL(idStr) else { return nil }
-      let transports = (dict["transports"] as? [String])?.toSecurityKeyTransports() ?? [.usb, .nfc, .bluetooth]
-      return ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor(credentialID: id, transports: transports)
-    }
+    securityRequest.allowedCredentials = allowed.map(\.securityKey)
 
     perform(
       requests: [platformRequest, securityRequest],
@@ -171,27 +152,33 @@ public class BetterAuthReactNativePasskeyModule: Module {
   ) {
     let controller = ASAuthorizationController(authorizationRequests: requests)
     let delegate = PasskeyDelegate(
+      anchor: presentationAnchor(),
       onSuccess: { promise.resolve($0) },
       onError: { rejectPasskey(promise, fallback: fallbackCode, error: $0) },
-      onFinish: { [weak self, weak controller] in
-        guard let self = self, let controller = controller else { return }
-        if self.pendingAutoFill?.controller === controller {
+      onFinish: { [weak self] finished in
+        guard let self = self else { return }
+        self.activeDelegates.removeAll { $0 === finished }
+        if self.pendingAutoFill?.delegate === finished {
           self.pendingAutoFill = nil
         }
       }
     )
-
     controller.delegate = delegate
     controller.presentationContextProvider = delegate
-    delegate.presentationAnchor = presentationAnchor()
-    PasskeySessionManager.retain(delegate)
+    activeDelegates.append(delegate)
 
-    if useAutofill, #available(iOS 16.0, macOS 13.0, *) {
+    #if os(iOS)
+    if useAutofill, #available(iOS 16.0, *) {
       // At most one assisted controller may compete for the QuickType bar.
       cancelPendingAutoFill()
       pendingAutoFill = (controller, delegate)
       controller.performAutoFillAssistedRequests()
-    } else if #available(iOS 16.0, macOS 13.0, *), useAutoRegister {
+      return
+    }
+    #endif
+    // AutoFill-assisted requests don't exist on macOS or before iOS 16, so
+    // `useAutofill` falls back to a modal request there.
+    if #available(iOS 16.0, macOS 13.0, *), useAutoRegister {
       controller.performRequests(options: .preferImmediatelyAvailableCredentials)
     } else {
       controller.performRequests()
@@ -223,7 +210,7 @@ public class BetterAuthReactNativePasskeyModule: Module {
       .compactMap { $0 as? UIWindowScene }
       .flatMap { $0.windows }
       .first { $0.isKeyWindow }
-    #elseif os(macOS)
+    #else
     return NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
     #endif
   }
@@ -232,16 +219,18 @@ public class BetterAuthReactNativePasskeyModule: Module {
 // MARK: - Delegate
 
 private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+  private weak var anchor: ASPresentationAnchor?
   private var onSuccess: (([String: Any]) -> Void)?
   private var onError: ((Error) -> Void)?
-  private var onFinish: (() -> Void)?
-  weak var presentationAnchor: ASPresentationAnchor?
+  private var onFinish: ((PasskeyDelegate) -> Void)?
 
   init(
+    anchor: ASPresentationAnchor?,
     onSuccess: @escaping ([String: Any]) -> Void,
     onError: @escaping (Error) -> Void,
-    onFinish: @escaping () -> Void
+    onFinish: @escaping (PasskeyDelegate) -> Void
   ) {
+    self.anchor = anchor
     self.onSuccess = onSuccess
     self.onError = onError
     self.onFinish = onFinish
@@ -250,100 +239,110 @@ private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate, ASAu
   /// Settles the request without waiting for AuthenticationServices.
   func abort(_ error: Error) {
     onError?(error)
-    cleanup()
+    finish()
   }
 
   func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-    return presentationAnchor ?? ASPresentationAnchor()
+    return anchor ?? ASPresentationAnchor()
   }
 
   func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-    if let reg = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialRegistration {
-      let id = toBase64URL(reg.credentialID)
-      onSuccess?([
-        "id": id,
-        "rawId": id,
-        "type": "public-key",
-        "authenticatorAttachment": "platform",
-        "response": [
-          "clientDataJSON": toBase64URL(reg.rawClientDataJSON),
-          "attestationObject": toBase64URL(reg.rawAttestationObject ?? Data()),
-          "transports": ["internal"],
-        ],
-        "clientExtensionResults": [:],
-      ])
-    } else if let reg = authorization.credential as? ASAuthorizationSecurityKeyPublicKeyCredentialRegistration {
-      let id = toBase64URL(reg.credentialID)
-      onSuccess?([
-        "id": id,
-        "rawId": id,
-        "type": "public-key",
-        "authenticatorAttachment": "cross-platform",
-        "response": [
-          "clientDataJSON": toBase64URL(reg.rawClientDataJSON),
-          "attestationObject": toBase64URL(reg.rawAttestationObject ?? Data()),
-          "transports": ["usb", "nfc", "ble"],
-        ],
-        "clientExtensionResults": [:],
-      ])
-    } else if let asrt = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialAssertion {
-      let id = toBase64URL(asrt.credentialID)
-      var resp: [String: Any] = [
-        "clientDataJSON": toBase64URL(asrt.rawClientDataJSON),
-        "authenticatorData": toBase64URL(asrt.rawAuthenticatorData ?? Data()),
-        "signature": toBase64URL(asrt.signature ?? Data()),
-      ]
-      if let user = asrt.userID, !user.isEmpty { resp["userHandle"] = toBase64URL(user) }
-      onSuccess?([
-        "id": id,
-        "rawId": id,
-        "type": "public-key",
-        "authenticatorAttachment": "platform",
-        "response": resp,
-        "clientExtensionResults": [:],
-      ])
-    } else if let asrt = authorization.credential as? ASAuthorizationSecurityKeyPublicKeyCredentialAssertion {
-      let id = toBase64URL(asrt.credentialID)
-      var resp: [String: Any] = [
-        "clientDataJSON": toBase64URL(asrt.rawClientDataJSON),
-        "authenticatorData": toBase64URL(asrt.rawAuthenticatorData ?? Data()),
-        "signature": toBase64URL(asrt.signature ?? Data()),
-      ]
-      if let user = asrt.userID, !user.isEmpty { resp["userHandle"] = toBase64URL(user) }
-      onSuccess?([
-        "id": id,
-        "rawId": id,
-        "type": "public-key",
-        "authenticatorAttachment": "cross-platform",
-        "response": resp,
-        "clientExtensionResults": [:],
-      ])
+    if let json = publicKeyCredentialJSON(authorization.credential) {
+      onSuccess?(json)
     } else {
       onError?(NSError(domain: "BetterAuthReactNativePasskey", code: -2, userInfo: [NSLocalizedDescriptionKey: "Unsupported credential type"]))
     }
-    cleanup()
+    finish()
   }
 
   func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
     onError?(error)
-    cleanup()
+    finish()
   }
 
-  private func cleanup() {
-    onFinish?()
+  private func finish() {
+    let onFinish = self.onFinish
     onSuccess = nil
     onError = nil
-    onFinish = nil
-    PasskeySessionManager.release(self)
+    self.onFinish = nil
+    onFinish?(self)
   }
 }
 
-// MARK: - Session Retain & Helpers
+// MARK: - Helpers
 
-private enum PasskeySessionManager {
-  private static var delegates: [PasskeyDelegate] = []
-  static func retain(_ d: PasskeyDelegate) { delegates.append(d) }
-  static func release(_ d: PasskeyDelegate) { delegates.removeAll { $0 === d } }
+/// Serializes a credential as a SimpleWebAuthn RegistrationResponseJSON or
+/// AuthenticationResponseJSON.
+private func publicKeyCredentialJSON(_ credential: ASAuthorizationCredential) -> [String: Any]? {
+  let attachment: String
+  switch credential {
+  case is ASAuthorizationPlatformPublicKeyCredentialRegistration,
+       is ASAuthorizationPlatformPublicKeyCredentialAssertion:
+    attachment = "platform"
+  case is ASAuthorizationSecurityKeyPublicKeyCredentialRegistration,
+       is ASAuthorizationSecurityKeyPublicKeyCredentialAssertion:
+    attachment = "cross-platform"
+  default:
+    return nil
+  }
+
+  let response: [String: Any]
+  let credentialID: Data
+  if let registration = credential as? ASAuthorizationPublicKeyCredentialRegistration {
+    credentialID = registration.credentialID
+    response = [
+      "clientDataJSON": toBase64URL(registration.rawClientDataJSON),
+      "attestationObject": toBase64URL(registration.rawAttestationObject ?? Data()),
+      "transports": attachment == "platform" ? ["internal"] : ["usb", "nfc", "ble"],
+    ]
+  } else if let assertion = credential as? ASAuthorizationPublicKeyCredentialAssertion {
+    credentialID = assertion.credentialID
+    var assertionResponse: [String: Any] = [
+      "clientDataJSON": toBase64URL(assertion.rawClientDataJSON),
+      "authenticatorData": toBase64URL(assertion.rawAuthenticatorData ?? Data()),
+      "signature": toBase64URL(assertion.signature ?? Data()),
+    ]
+    if let userID = assertion.userID, !userID.isEmpty {
+      assertionResponse["userHandle"] = toBase64URL(userID)
+    }
+    response = assertionResponse
+  } else {
+    return nil
+  }
+
+  let id = toBase64URL(credentialID)
+  return [
+    "id": id,
+    "rawId": id,
+    "type": "public-key",
+    "authenticatorAttachment": attachment,
+    "response": response,
+    "clientExtensionResults": [:],
+  ]
+}
+
+/// A `PublicKeyCredentialDescriptorJSON` from `allowCredentials` or `excludeCredentials`.
+private struct CredentialDescriptor {
+  let id: Data
+  let transports: [String]
+
+  init?(_ json: [String: Any]) {
+    guard let idStr = json["id"] as? String, let id = fromBase64URL(idStr) else { return nil }
+    self.id = id
+    self.transports = (json["transports"] as? [String]) ?? []
+  }
+
+  var platform: ASAuthorizationPlatformPublicKeyCredentialDescriptor {
+    ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: id)
+  }
+
+  var securityKey: ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor {
+    ASAuthorizationSecurityKeyPublicKeyCredentialDescriptor(credentialID: id, transports: transports.toSecurityKeyTransports())
+  }
+}
+
+private func credentialDescriptors(_ json: Any?) -> [CredentialDescriptor] {
+  ((json as? [[String: Any]]) ?? []).compactMap(CredentialDescriptor.init)
 }
 
 private func fromBase64URL(_ str: String) -> Data? {
@@ -376,7 +375,7 @@ private func rejectPasskey(_ promise: Promise, fallback: String, error: Error) {
 
 private extension String {
   func toUserVerificationPreference() -> ASAuthorizationPublicKeyCredentialUserVerificationPreference {
-    switch self.lowercased() {
+    switch lowercased() {
     case "required": return .required
     case "discouraged": return .discouraged
     default: return .preferred
@@ -384,7 +383,7 @@ private extension String {
   }
 
   func toAttestationPreference() -> ASAuthorizationPublicKeyCredentialAttestationKind {
-    switch self.lowercased() {
+    switch lowercased() {
     case "direct": return .direct
     case "indirect": return .indirect
     case "enterprise": return .enterprise
@@ -395,17 +394,12 @@ private extension String {
 
 private extension Dictionary where Key == String, Value == Any {
   func toResidentKeyPreference() -> ASAuthorizationPublicKeyCredentialResidentKeyPreference {
-    if let rk = (self["residentKey"] as? String)?.lowercased() {
-      switch rk {
-      case "required": return .required
-      case "discouraged": return .discouraged
-      default: return .preferred
-      }
+    switch (self["residentKey"] as? String)?.lowercased() {
+    case "required": return .required
+    case "discouraged": return .discouraged
+    case .some: return .preferred
+    case .none: return self["requireResidentKey"] as? Bool == true ? .required : .preferred
     }
-    if self["requireResidentKey"] as? Bool == true {
-      return .required
-    }
-    return .preferred
   }
 }
 
