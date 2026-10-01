@@ -159,6 +159,11 @@ class BetterAuthReactNativePasskeyModule : Module() {
         }
       }
     }
+
+    // Credential Manager has no AutoFill-assisted requests (`useAutofill` only
+    // prefers immediately available credentials in the modal sheet), so there
+    // is never a pending one to cancel.
+    AsyncFunction("cancelPasskeyAutoFill") {}
   }
 }
 

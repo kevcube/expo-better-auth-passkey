@@ -107,7 +107,21 @@ The module internally forwards every server call to Better Auth and only overrid
 
 Optional hints supported by this module:
 - Pass `{ useAutoRegister: true }` to `addPasskey` to request the platform UI to suggest immediate passkey creation (iOS 16+).
-- Pass `{ autoFill: true }` to `signIn.passkey` to allow autofill suggestions (iOS 16+).
+- Pass `{ autoFill: true }` to `signIn.passkey` to allow autofill suggestions (iOS 16+). The request stays pending until the user picks the suggestion, so cancel it when the user signs in another way or leaves the screen:
+  ```ts
+  import { cancelPasskeyAutoFill } from 'expo-better-auth-passkey'
+
+  useEffect(() => {
+    authClient.signIn.passkey({ autoFill: true }).then((result) => {
+      if (result.error?.code === 'ERROR_CEREMONY_ABORTED') return
+      // handle sign-in
+    })
+    return () => {
+      cancelPasskeyAutoFill()
+    }
+  }, [])
+  ```
+  `cancelPasskeyAutoFill()` rejects the pending AutoFill request with `ERROR_CEREMONY_ABORTED`, including one still fetching its options, and resolves without effect when none is pending. Modal requests are never cancelled, so call it before starting a modal `signIn.passkey()` too. Starting a new AutoFill request cancels the previous one, so at most one is live. On Android and web it has nothing to cancel and resolves immediately.
 
 ### Android
 

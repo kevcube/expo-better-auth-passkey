@@ -16,6 +16,8 @@ interface NativeBetterAuthReactNativePasskeyModule {
     optionsJSON: PublicKeyCredentialRequestOptionsJSON;
     useAutofill?: boolean;
   }): Promise<AuthenticationResponseJSON>;
+
+  cancelPasskeyAutoFill(): Promise<void>;
 }
 
 const NativeModule =
@@ -42,6 +44,10 @@ const BetterAuthReactNativePasskeyModule = {
     useAutofill?: boolean;
   }) {
     return NativeModule.authenticatePasskey({ optionsJSON, useAutofill });
+  },
+
+  cancelPasskeyAutoFill() {
+    return NativeModule.cancelPasskeyAutoFill();
   },
 };
 

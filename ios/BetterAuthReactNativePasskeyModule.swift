@@ -8,16 +8,25 @@ import AppKit
 #endif
 
 public class BetterAuthReactNativePasskeyModule: Module {
+  // The live AutoFill-assisted request, if any. Only touched on the main queue.
+  private var pendingAutoFill: (controller: ASAuthorizationController, delegate: PasskeyDelegate)?
+
   public func definition() -> ModuleDefinition {
     Name("BetterAuthReactNativePasskey")
 
+    // Every function runs on main so controller, delegate, and pendingAutoFill
+    // state share the queue AuthenticationServices calls the delegate on.
     AsyncFunction("registerPasskey") { (input: [String: Any], promise: Promise) in
       self.createPasskey(input: input, promise: promise)
-    }
+    }.runOnQueue(.main)
 
     AsyncFunction("authenticatePasskey") { (input: [String: Any], promise: Promise) in
       self.getPasskey(input: input, promise: promise)
-    }
+    }.runOnQueue(.main)
+
+    AsyncFunction("cancelPasskeyAutoFill") {
+      self.cancelPendingAutoFill()
+    }.runOnQueue(.main)
   }
 
   // MARK: - Registration
@@ -163,7 +172,13 @@ public class BetterAuthReactNativePasskeyModule: Module {
     let controller = ASAuthorizationController(authorizationRequests: requests)
     let delegate = PasskeyDelegate(
       onSuccess: { promise.resolve($0) },
-      onError: { rejectPasskey(promise, fallback: fallbackCode, error: $0) }
+      onError: { rejectPasskey(promise, fallback: fallbackCode, error: $0) },
+      onFinish: { [weak self, weak controller] in
+        guard let self = self, let controller = controller else { return }
+        if self.pendingAutoFill?.controller === controller {
+          self.pendingAutoFill = nil
+        }
+      }
     )
 
     controller.delegate = delegate
@@ -171,12 +186,11 @@ public class BetterAuthReactNativePasskeyModule: Module {
     delegate.presentationAnchor = presentationAnchor()
     PasskeySessionManager.retain(delegate)
 
-    if useAutofill {
-      if #available(iOS 16.0, macOS 13.0, *) {
-        controller.performAutoFillAssistedRequests()
-      } else {
-        controller.performRequests()
-      }
+    if useAutofill, #available(iOS 16.0, macOS 13.0, *) {
+      // At most one assisted controller may compete for the QuickType bar.
+      cancelPendingAutoFill()
+      pendingAutoFill = (controller, delegate)
+      controller.performAutoFillAssistedRequests()
     } else if #available(iOS 16.0, macOS 13.0, *), useAutoRegister {
       controller.performRequests(options: .preferImmediatelyAvailableCredentials)
     } else {
@@ -184,22 +198,34 @@ public class BetterAuthReactNativePasskeyModule: Module {
     }
   }
 
-  private func presentationAnchor() -> ASPresentationAnchor? {
-    let getAnchor = { () -> ASPresentationAnchor? in
-      #if os(iOS)
-      if let vc = self.appContext?.utilities?.currentViewController() {
-        return vc.view?.window
-      }
-      return UIApplication.shared.connectedScenes
-        .compactMap { $0 as? UIWindowScene }
-        .flatMap { $0.windows }
-        .first { $0.isKeyWindow }
-      #elseif os(macOS)
-      return NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
-      #endif
+  /// Rejects the pending AutoFill-assisted request with ERROR_CEREMONY_ABORTED
+  /// and cancels its controller. Modal requests are never tracked here.
+  private func cancelPendingAutoFill() {
+    guard let pending = pendingAutoFill else { return }
+    pendingAutoFill = nil
+    // Settle first: whether cancel() calls the delegate for an assisted
+    // controller is undocumented, and a late callback must be a no-op.
+    pending.delegate.abort(ASAuthorizationError(
+      .canceled,
+      userInfo: [NSLocalizedDescriptionKey: "AutoFill passkey request was cancelled"]
+    ))
+    if #available(iOS 16.0, macOS 13.0, *) {
+      pending.controller.cancel()
     }
-    if Thread.isMainThread { return getAnchor() }
-    return DispatchQueue.main.sync { getAnchor() }
+  }
+
+  private func presentationAnchor() -> ASPresentationAnchor? {
+    #if os(iOS)
+    if let vc = appContext?.utilities?.currentViewController() {
+      return vc.view?.window
+    }
+    return UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+    #elseif os(macOS)
+    return NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
+    #endif
   }
 }
 
@@ -208,11 +234,23 @@ public class BetterAuthReactNativePasskeyModule: Module {
 private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
   private var onSuccess: (([String: Any]) -> Void)?
   private var onError: ((Error) -> Void)?
+  private var onFinish: (() -> Void)?
   weak var presentationAnchor: ASPresentationAnchor?
 
-  init(onSuccess: @escaping ([String: Any]) -> Void, onError: @escaping (Error) -> Void) {
+  init(
+    onSuccess: @escaping ([String: Any]) -> Void,
+    onError: @escaping (Error) -> Void,
+    onFinish: @escaping () -> Void
+  ) {
     self.onSuccess = onSuccess
     self.onError = onError
+    self.onFinish = onFinish
+  }
+
+  /// Settles the request without waiting for AuthenticationServices.
+  func abort(_ error: Error) {
+    onError?(error)
+    cleanup()
   }
 
   func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
@@ -292,8 +330,10 @@ private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate, ASAu
   }
 
   private func cleanup() {
+    onFinish?()
     onSuccess = nil
     onError = nil
+    onFinish = nil
     PasskeySessionManager.release(self)
   }
 }

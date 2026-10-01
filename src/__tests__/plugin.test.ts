@@ -22,12 +22,14 @@ jest.mock("react-native", () => ({
 // Mock the native PasskeyModule
 const mockRegisterPasskey = jest.fn();
 const mockAuthenticatePasskey = jest.fn();
+const mockCancelPasskeyAutoFill = jest.fn();
 
 jest.mock("../BetterAuthReactNativePasskeyModule", () => ({
   __esModule: true,
   default: {
     registerPasskey: mockRegisterPasskey,
     authenticatePasskey: mockAuthenticatePasskey,
+    cancelPasskeyAutoFill: mockCancelPasskeyAutoFill,
   },
 }));
 
@@ -43,7 +45,11 @@ jest.mock("@better-auth/passkey/client", () => ({
     atomListeners: [],
   }),
 }));
-import { expoPasskeyClient, getPasskeyActionsNative } from "../plugin";
+import {
+  cancelPasskeyAutoFill,
+  expoPasskeyClient,
+  getPasskeyActionsNative,
+} from "../plugin";
 describe("expoPasskeyClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -199,6 +205,48 @@ describe("getPasskeyActionsNative", () => {
       expect(mockAuthenticatePasskey).toHaveBeenCalledWith({
         optionsJSON: mockAuthOptions,
         useAutofill: true,
+      });
+    });
+
+    describe("cancelPasskeyAutoFill while options are loading", () => {
+      const signInAfterCancel = async (autoFill: boolean) => {
+        const options = Promise.withResolvers<unknown>();
+        mockFetch
+          .mockReturnValueOnce(options.promise)
+          .mockResolvedValueOnce({ data: mockSession, error: null });
+        mockCancelPasskeyAutoFill.mockResolvedValueOnce(undefined);
+
+        const actions = getPasskeyActionsNative(mockFetch, {
+          $listPasskeys,
+          $store,
+        });
+        const pending = actions.signIn.passkey({ autoFill });
+        await cancelPasskeyAutoFill();
+        options.resolve({ data: mockAuthOptions, error: null });
+        return pending;
+      };
+
+      it("aborts an AutoFill sign-in before it reaches native", async () => {
+        const result = await signInAfterCancel(true);
+
+        expect(mockAuthenticatePasskey).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          data: null,
+          error: {
+            code: "ERROR_CEREMONY_ABORTED",
+            message: "Auth cancelled",
+            status: 400,
+            statusText: "BAD_REQUEST",
+          },
+        });
+      });
+
+      it("leaves a modal sign-in running", async () => {
+        mockAuthenticatePasskey.mockResolvedValueOnce(mockAssertion);
+        const result = await signInAfterCancel(false);
+
+        expect(mockAuthenticatePasskey).toHaveBeenCalled();
+        expect(result).toEqual({ data: mockSession, error: null });
       });
     });
 

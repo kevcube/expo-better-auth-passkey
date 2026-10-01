@@ -1,2 +1,2 @@
 // Main export: unified client for web and native
-export { expoPasskeyClient } from "./plugin";
+export { cancelPasskeyAutoFill, expoPasskeyClient } from "./plugin";
