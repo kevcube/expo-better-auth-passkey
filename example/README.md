@@ -23,7 +23,7 @@ The CLI reads `lib/auth.ts`. Re-run `migrate` after schema changes or on a fresh
 ## 3) Expose Metro over Tailscale TLS
 
 1. Find your MagicDNS name: `tailscale status --json` → `Self.DNSName` (strip the trailing dot).
-2. Put that hostname in `.env`:
+2. Copy `.env.example` to `.env` and put that hostname in it:
 
 ```bash
 EXPO_PUBLIC_PASSKEY_RP_ID=kbp.tailnet-name.ts.net
@@ -37,6 +37,8 @@ tailscale serve --bg 8081
 ```
 
 `tailscale serve` terminates TLS for `https://<magicdns>` and proxies to Metro. That hostname becomes both `baseURL` and `rpID`.
+
+If `certs/<magicdns>.crt` and `certs/<magicdns>.key` exist (the files `tailscale cert <magicdns>` writes), Metro serves HTTPS itself using them.
 
 Associated domains use `?mode=developer`. On the phone: Settings → Developer → Associated Domains Development. The device must be on the tailnet so it can fetch `/.well-known/apple-app-site-association`.
 

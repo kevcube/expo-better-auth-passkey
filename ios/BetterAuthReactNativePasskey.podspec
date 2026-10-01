@@ -12,11 +12,10 @@ Pod::Spec.new do |s|
   s.homepage       = package['homepage']
   s.platforms      = {
     :ios => '15.1',
-    :tvos => '15.1',
     :osx => '12.0'
   }
   s.swift_version  = '5.4'
-  s.source         = { git: 'https://github.com/better-auth-react-native-passkey' }
+  s.source         = { git: package['repository'] }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'

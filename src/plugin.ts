@@ -1,18 +1,12 @@
-import type {
-  BetterAuthClientPlugin,
-  ClientFetchOption,
-  ClientStore,
-} from "@better-auth/core";
+import type { ClientFetchOption, ClientStore } from "@better-auth/core";
 import { getPasskeyActions, passkeyClient } from "@better-auth/passkey/client";
 import type { Passkey } from "@better-auth/passkey/client";
 import type { BetterFetch } from "@better-fetch/fetch";
 import type {
   AuthenticationExtensionsClientInputs,
-  AuthenticationExtensionsClientOutputs,
   AuthenticationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
-  RegistrationResponseJSON,
   WebAuthnErrorCode,
 } from "@simplewebauthn/browser";
 import type { Session, User } from "better-auth/types";
@@ -20,27 +14,26 @@ import { Platform } from "react-native";
 
 import PasskeyModule from "./BetterAuthReactNativePasskeyModule";
 
+// @better-auth/passkey exports no named type for its client plugin.
+type PasskeyClientPlugin = ReturnType<typeof passkeyClient>;
+
 /**
  * Expo/React Native passkey client that extends better-auth's `passkeyClient`
  * and overrides only the device WebAuthn calls to use React Native modules.
  */
-export const expoPasskeyClient = (): BetterAuthClientPlugin => {
+export const expoPasskeyClient = (): PasskeyClientPlugin => {
   const baseClient = passkeyClient();
 
   return {
     ...baseClient,
-    getActions: (
-      $fetch: BetterFetch,
-      $store: ClientStore,
-      _options?: unknown,
-    ) => {
+    getActions: ($fetch, $store) => {
       const { $listPasskeys } = baseClient.getAtoms($fetch);
       if (Platform.OS === "web") {
         return getPasskeyActions($fetch, { $listPasskeys, $store });
       }
       return getPasskeyActionsNative($fetch, { $listPasskeys, $store });
     },
-  } satisfies BetterAuthClientPlugin;
+  };
 };
 
 // Bumped by every cancel so an AutoFill sign-in still fetching its options
@@ -49,10 +42,10 @@ let autoFillGeneration = 0;
 
 /**
  * Cancels the pending AutoFill-assisted request started by
- * `signIn.passkey({ autoFill: true })` (iOS 16+ / macOS 13+). That sign-in
+ * `signIn.passkey({ autoFill: true })` (iOS 16+). That sign-in
  * resolves with an `ERROR_CEREMONY_ABORTED` error. Resolves without effect
  * when no assisted request is pending; modal requests are never cancelled.
- * Android and web have no assisted request of this module's to cancel.
+ * Other platforms have no assisted request of this module's to cancel.
  */
 export const cancelPasskeyAutoFill = (): Promise<void> => {
   autoFillGeneration++;
@@ -87,6 +80,19 @@ const isNativeWebAuthnError = (
   "message" in error &&
   typeof error.message === "string";
 
+// Upstream returns this shape for every client-side ceremony failure.
+const failure = (
+  code: string,
+  message: string,
+  status = 400,
+  statusText = "BAD_REQUEST",
+) => ({ data: null, error: { code, message, status, statusText } });
+
+const registrationMessages: Partial<Record<WebAuthnErrorCode, string>> = {
+  ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: "Previously registered",
+  ERROR_CEREMONY_ABORTED: "Registration cancelled",
+};
+
 export const getPasskeyActionsNative = (
   $fetch: BetterFetch,
   {
@@ -109,65 +115,43 @@ export const getPasskeyActionsNative = (
     const generation = autoFillGeneration;
     const response = await $fetch<PublicKeyCredentialRequestOptionsJSON>(
       "/passkey/generate-authenticate-options",
-      {
-        method: "GET",
-        throw: false,
-      },
+      { method: "GET", throw: false },
     );
     if (!response.data) return response;
     if (opts?.autoFill && generation !== autoFillGeneration) {
-      return {
-        data: null,
-        error: {
-          code: "ERROR_CEREMONY_ABORTED",
-          message: "Auth cancelled",
-          status: 400,
-          statusText: "BAD_REQUEST",
-        },
-      };
+      return failure("ERROR_CEREMONY_ABORTED", "Auth cancelled");
     }
 
-    const mergedExtensions =
+    const extensions =
       response.data.extensions || opts?.extensions
-        ? {
-            ...(response.data.extensions || {}),
-            ...(opts?.extensions || {}),
-          }
+        ? { ...response.data.extensions, ...opts?.extensions }
         : undefined;
     let assertion: AuthenticationResponseJSON;
     try {
       assertion = await PasskeyModule.authenticatePasskey({
-        optionsJSON: {
-          ...response.data,
-          ...(mergedExtensions && { extensions: mergedExtensions }),
-        },
+        optionsJSON: { ...response.data, ...(extensions && { extensions }) },
         useAutofill: opts?.autoFill,
       });
     } catch (e) {
       console.error("Passkey sign-in error:", e);
-      return {
-        data: null,
-        error: {
-          code: isNativeWebAuthnError(e) ? e.code : "AUTH_CANCELLED",
-          message: "Auth cancelled",
-          status: 400,
-          statusText: "BAD_REQUEST",
-        },
-      };
+      return failure(
+        isNativeWebAuthnError(e) ? e.code : "AUTH_CANCELLED",
+        "Auth cancelled",
+      );
     }
 
     try {
       const { clientExtensionResults, ...responseBody } = assertion;
-      const verified = await $fetch<{
-        session: Session;
-        user: User;
-      }>("/passkey/verify-authentication", {
-        body: { response: responseBody },
-        ...opts?.fetchOptions,
-        ...options,
-        method: "POST",
-        throw: false,
-      });
+      const verified = await $fetch<{ session: Session; user: User }>(
+        "/passkey/verify-authentication",
+        {
+          body: { response: responseBody },
+          ...opts?.fetchOptions,
+          ...options,
+          method: "POST",
+          throw: false,
+        },
+      );
 
       if (verified.data) {
         $listPasskeys.set(Math.random());
@@ -177,25 +161,13 @@ export const getPasskeyActionsNative = (
       if (opts?.returnWebAuthnResponse) {
         return {
           ...verified,
-          webauthn: {
-            response: assertion as AuthenticationResponseJSON,
-            clientExtensionResults:
-              clientExtensionResults as AuthenticationExtensionsClientOutputs,
-          },
+          webauthn: { response: assertion, clientExtensionResults },
         };
       }
       return verified;
     } catch (e) {
       console.error("Passkey verification error:", e);
-      return {
-        data: null,
-        error: {
-          code: "AUTH_CANCELLED",
-          message: "Auth cancelled",
-          status: 400,
-          statusText: "BAD_REQUEST",
-        },
-      };
+      return failure("AUTH_CANCELLED", "Auth cancelled");
     }
   };
 
@@ -207,6 +179,7 @@ export const getPasskeyActionsNative = (
       context?: string | null;
       extensions?: AuthenticationExtensionsClientInputs;
       useAutoRegister?: boolean;
+      createSession?: boolean;
       returnWebAuthnResponse?: boolean;
     },
     fetchOpts?: ClientFetchOption,
@@ -225,93 +198,53 @@ export const getPasskeyActionsNative = (
         throw: false,
       },
     );
-
     if (!optionsRes.data) return optionsRes;
 
     try {
-      const mergedExtensions =
+      const extensions =
         optionsRes.data.extensions || opts?.extensions
-          ? {
-              ...(optionsRes.data.extensions || {}),
-              ...(opts?.extensions || {}),
-            }
+          ? { ...optionsRes.data.extensions, ...opts?.extensions }
           : undefined;
       const attestation = await PasskeyModule.registerPasskey({
-        optionsJSON: {
-          ...optionsRes.data,
-          ...(mergedExtensions && { extensions: mergedExtensions }),
-        },
+        optionsJSON: { ...optionsRes.data, ...(extensions && { extensions }) },
         useAutoRegister: opts?.useAutoRegister,
       });
       const { clientExtensionResults, ...responseBody } = attestation;
 
-      const verified = await $fetch<Passkey>("/passkey/verify-registration", {
+      const verified = await $fetch<
+        Passkey & { session?: Session; user?: User }
+      >("/passkey/verify-registration", {
         ...opts?.fetchOptions,
         ...fetchOpts,
         body: {
           response: responseBody,
           name: opts?.name,
+          ...(opts?.createSession && { createSession: true }),
         },
         method: "POST",
         throw: false,
       });
       if (!verified.data) return verified;
       $listPasskeys.set(Math.random());
+      if (verified.data.session) $store.notify("$sessionSignal");
       if (opts?.returnWebAuthnResponse) {
         return {
           ...verified,
-          webauthn: {
-            response: attestation as RegistrationResponseJSON,
-            clientExtensionResults:
-              clientExtensionResults as AuthenticationExtensionsClientOutputs,
-          },
+          webauthn: { response: attestation, clientExtensionResults },
         };
       }
       return verified;
     } catch (e) {
       console.error("Passkey registration error:", e);
       if (isNativeWebAuthnError(e)) {
-        if (e.code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") {
-          return {
-            data: null,
-            error: {
-              code: e.code,
-              message: "Previously registered",
-              status: 400,
-              statusText: "BAD_REQUEST",
-            },
-          };
-        }
-        if (e.code === "ERROR_CEREMONY_ABORTED") {
-          return {
-            data: null,
-            error: {
-              code: e.code,
-              message: "Registration cancelled",
-              status: 400,
-              statusText: "BAD_REQUEST",
-            },
-          };
-        }
-        return {
-          data: null,
-          error: {
-            code: e.code,
-            message: e.message,
-            status: 400,
-            statusText: "BAD_REQUEST",
-          },
-        };
+        return failure(e.code, registrationMessages[e.code] ?? e.message);
       }
-      return {
-        data: null,
-        error: {
-          code: "UNKNOWN_ERROR",
-          message: e instanceof Error ? e.message : "Unknown error",
-          status: 500,
-          statusText: "INTERNAL_SERVER_ERROR",
-        },
-      };
+      return failure(
+        "UNKNOWN_ERROR",
+        e instanceof Error ? e.message : "Unknown error",
+        500,
+        "INTERNAL_SERVER_ERROR",
+      );
     }
   };
 

@@ -8,7 +8,7 @@ Expo/React Native drop-in replacement for the Better Auth [`passkeyClient`](http
 - Native Credential APIs: wraps WebAuthn calls with `ASAuthorizationController` on Apple platforms and Android Credential Manager on Android.
 - Works with managed or bare Expo projects; no ejecting required.
 - Single code path for web builds—falls back to the stock Better Auth web client when `Platform.OS === 'web'`.
-- TypeScript-first with strict types mirrored from `@simplewebauthn/types`.
+- Typed like the stock client: `expoPasskeyClient()` has the same TypeScript type as `passkeyClient()`.
 
 ## Supported platforms
 
@@ -57,7 +57,7 @@ export const authClient = createAuthClient({
 
 // Works exactly like Better Auth's stock client:
 await authClient.passkey.addPasskey({ name: 'My iPhone' })
-await authClient.signIn.passkey({ email: 'user@example.com' })
+await authClient.signIn.passkey()
 ```
 
 The module internally forwards every server call to Better Auth and only overrides the WebAuthn credential creation/retrieval steps. Web builds automatically fall back to the original Better Auth WebAuthn implementation.
@@ -107,7 +107,7 @@ The module internally forwards every server call to Better Auth and only overrid
 
 Optional hints supported by this module:
 - Pass `{ useAutoRegister: true }` to `addPasskey` to request the platform UI to suggest immediate passkey creation (iOS 16+).
-- Pass `{ autoFill: true }` to `signIn.passkey` to allow autofill suggestions (iOS 16+). The request stays pending until the user picks the suggestion, so cancel it when the user signs in another way or leaves the screen:
+- Pass `{ autoFill: true }` to `signIn.passkey` for AutoFill-assisted sign-in from the QuickType bar (iOS 16+; macOS and older iOS show the modal sheet instead). The request stays pending until the user picks the suggestion, so cancel it when the user signs in another way or leaves the screen:
   ```ts
   import { cancelPasskeyAutoFill } from 'expo-better-auth-passkey'
 
@@ -121,18 +121,16 @@ Optional hints supported by this module:
     }
   }, [])
   ```
-  `cancelPasskeyAutoFill()` rejects the pending AutoFill request with `ERROR_CEREMONY_ABORTED`, including one still fetching its options, and resolves without effect when none is pending. Modal requests are never cancelled, so call it before starting a modal `signIn.passkey()` too. Starting a new AutoFill request cancels the previous one, so at most one is live. On Android and web it has nothing to cancel and resolves immediately.
+  `cancelPasskeyAutoFill()` rejects the pending AutoFill request with `ERROR_CEREMONY_ABORTED`, including one still fetching its options, and resolves without effect when none is pending. Modal requests are never cancelled, so call it before starting a modal `signIn.passkey()` too. Starting a new AutoFill request cancels the previous one, so at most one is live. On macOS, Android, and web it has nothing to cancel and resolves immediately.
 
 ### Android
 
-1. **Min requirements**: Android 9 (API 28) or newer with Credential Manager 1.3.0+. Users need Google Play Services 23.30+ for passkeys.
+1. **Min requirements**: Android 9 (API 28) or newer. Users need Google Play Services 23.30+ for passkeys.
 2. **App signing SHA-256**: Obtain your app signing certificate fingerprint. For debug builds:
    ```bash
- keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep 'SHA256:'
-  ```
- Replace this with your Play App Signing fingerprint for production. Convert each raw SHA-256 fingerprint to base64 and add `android:apk-key-hash:<BASE64_SHA256>` entries to the Better Auth `origin` array so the server trusts credentials coming from your APK.
-5. **Optional**: If you want to forward your Android app's HTTPS origin when calling Credential Manager, request the `android.permission.CREDENTIAL_MANAGER_SET_ORIGIN` permission (API 34+). The module automatically falls back when the permission is missing, so you can skip it if you don't need per-domain attribution.
-6. The Android bridge rewrites `user.displayName` to match `user.name` before presenting the system dialog so that each passkey nickname shows up without conflicting with the persistent Better Auth `displayName` field.
+   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep 'SHA256:'
+   ```
+   Replace this with your Play App Signing fingerprint for production. Convert each raw SHA-256 fingerprint to base64 and add `android:apk-key-hash:<BASE64_SHA256>` entries to the Better Auth `origin` array so the server trusts credentials coming from your APK.
 3. Host `https://auth.example.com/.well-known/assetlinks.json` with content:
    ```json
    [
@@ -152,6 +150,9 @@ Optional hints supported by this module:
    - Include every signing fingerprint you use (debug, release, Play signing).
 4. If you use Expo managed workflow, set `android.package` in `app.json`/`app.config.js` so autolinking matches the identifier above.
 5. Ensure the relying party hostname (`rpID`) exactly matches the host portion of your HTTPS domain (`auth.example.com`). The module automatically injects the `origin` field before returning to Better Auth.
+6. **Optional**: If you want to forward your Android app's HTTPS origin when calling Credential Manager, request the `android.permission.CREDENTIAL_MANAGER_SET_ORIGIN` permission (API 34+). The module automatically falls back when the permission is missing, so you can skip it if you don't need per-domain attribution.
+
+The Android bridge rewrites `user.displayName` to match `user.name` before presenting the system dialog so that each passkey nickname shows up without conflicting with the persistent Better Auth `displayName` field.
 
 ### Web
 
@@ -159,14 +160,14 @@ No additional setup beyond the regular Better Auth client. The plugin detects th
 
 ## Development workflow
 
-- `npm run build` – compile the TypeScript sources.
-- `npm run lint` – lint with Expo module preset.
-- `npm run test` – run the Expo module test runner.
-- `cd example && npm install && npm start` – launch the example app. Use `npm run ios` / `npm run android` from the `example` directory for device simulators.
+- `pnpm build` – compile the TypeScript sources.
+- `pnpm lint` – lint with the Expo module preset.
+- `pnpm test` – run the Jest suite.
+- `cd example && pnpm start` – launch the example app (`pnpm ios` / `pnpm android` for native builds). See [`example/README.md`](example/README.md) for the HTTPS and database setup it needs.
 
 ## Error handling & diagnostics
 
-Native actions follow the error handling of `@better-auth/passkey` 1.6.27. Returned errors keep Better Auth's `{ code, message, status, statusText }` shape; no `cause` field is added.
+Native actions follow the behavior and error handling of `@better-auth/passkey` 1.7.7, including `addPasskey({ createSession: true })`, which signs the user in when the server returns a session. Returned errors keep Better Auth's `{ code, message, status, statusText }` shape; no `cause` field is added.
 
 | Failure | `signIn.passkey()` | `passkey.addPasskey()` |
 | --- | --- | --- |
@@ -183,11 +184,11 @@ Native errors are still logged to the console with their original code and messa
 
 ## Contributing & macOS testing
 
-macOS uses the same AuthenticationServices implementation as iOS but has limited coverage. If you can validate on macOS 12+, please open an issue or PR with results. Contributions for advanced features (cross-platform authenticators, passkey list management, web fallbacks) are encouraged.
+macOS uses the same AuthenticationServices implementation as iOS but has limited coverage. If you can validate on macOS 12+, please open an issue or PR with results.
 
-1. Fork the repo and install dependencies with `npm install`.
-2. Use `npm run build` before opening a PR to ensure the generated `build/` output is up to date.
-3. Follow the lint/test scripts above. Please include repro steps for any passkey edge cases you fix.
+1. Fork the repo and install dependencies with `pnpm install` (this also installs the example workspace).
+2. Run `pnpm lint`, `pnpm test`, and `pnpm build` before opening a PR.
+3. Please include repro steps for any passkey edge cases you fix.
 
 ## License
 

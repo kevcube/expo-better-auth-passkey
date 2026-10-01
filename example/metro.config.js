@@ -19,20 +19,14 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-const tlsCert = path.join(
-  __dirname,
-  "certs",
-  "macbook-pro.bat-monster.ts.net.crt",
-);
-const tlsKey = path.join(
-  __dirname,
-  "certs",
-  "macbook-pro.bat-monster.ts.net.key",
-);
+// `tailscale cert <host>` output, if present, so Metro serves HTTPS directly.
+const rpId = process.env.EXPO_PUBLIC_PASSKEY_RP_ID;
+const tlsCert = rpId && path.join(__dirname, "certs", `${rpId}.crt`);
+const tlsKey = rpId && path.join(__dirname, "certs", `${rpId}.key`);
 
 config.server = {
   ...config.server,
-  ...(fs.existsSync(tlsCert) && fs.existsSync(tlsKey)
+  ...(tlsCert && fs.existsSync(tlsCert) && fs.existsSync(tlsKey)
     ? {
         tls: {
           cert: fs.readFileSync(tlsCert),

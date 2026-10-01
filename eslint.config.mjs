@@ -7,8 +7,4 @@ export default [
   {
     ignores: ['build/**', 'node_modules/**', 'example/**', '*.config.js', '*.config.mjs'],
   },
-  {
-    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
-    rules: {},
-  },
 ];

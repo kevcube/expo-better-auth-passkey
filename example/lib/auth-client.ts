@@ -4,8 +4,7 @@ import { createAuthClient } from "better-auth/react";
 import { expoPasskeyClient } from "expo-better-auth-passkey";
 import * as SecureStore from "expo-secure-store";
 
-const rpId =
-  process.env.EXPO_PUBLIC_PASSKEY_RP_ID || process.env.EXPO_PUBLIC_NGROK_URL;
+const rpId = process.env.EXPO_PUBLIC_PASSKEY_RP_ID;
 const baseURL = rpId ? `https://${rpId}:8081` : "http://localhost:8081";
 export const authClient = createAuthClient({
   baseURL,
