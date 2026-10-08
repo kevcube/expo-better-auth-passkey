@@ -132,10 +132,13 @@ public class BetterAuthReactNativePasskeyModule: Module {
     securityRequest.userVerificationPreference = uvPref
     securityRequest.allowedCredentials = allowed.map(\.securityKey)
 
+    // AutoFill only supports platform passkeys. A security key request makes
+    // performAutoFillAssistedRequests fail, so leave it out there.
+    let useAutofill = (input["useAutofill"] as? Bool) ?? false
     perform(
-      requests: [platformRequest, securityRequest],
+      requests: useAutofill ? [platformRequest] : [platformRequest, securityRequest],
       useAutoRegister: false,
-      useAutofill: (input["useAutofill"] as? Bool) ?? false,
+      useAutofill: useAutofill,
       fallbackCode: "ERR_GET_PASSKEY",
       promise: promise
     )
