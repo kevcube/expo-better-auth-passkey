@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.6.0...v1.6.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ios:** only send platform passkey request for AutoFill ([#40](https://github.com/kevcube/expo-better-auth-passkey/issues/40)) ([b763648](https://github.com/kevcube/expo-better-auth-passkey/commit/b76364871633dfa2ce6d992b22567e8ac21a62a3))
+
 ## [1.6.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.5.1...v1.6.0) (2026-10-01)
 
 
