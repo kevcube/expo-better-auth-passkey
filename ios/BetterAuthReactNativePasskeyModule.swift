@@ -363,17 +363,28 @@ private func toBase64URL(_ data: Data) -> String {
 
 private func rejectPasskey(_ promise: Promise, fallback: String, error: Error) {
   if let authError = error as? ASAuthorizationError {
-    switch authError.code {
-    case .canceled:
+    if authError.code == .canceled {
       promise.reject("ERROR_CEREMONY_ABORTED", authError.localizedDescription)
-    case .failed:
-      promise.reject("ERR_FAILED", authError.localizedDescription)
-    default:
-      promise.reject(fallback, authError.localizedDescription)
+      return
     }
+    // iOS 18+ fails a registration whose excludeCredentials match a
+    // credential on the device; the web client reports the same case so.
+    if #available(iOS 18.0, macOS 15.0, *), authError.code == .matchedExcludedCredential {
+      promise.reject("ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED", authError.localizedDescription)
+      return
+    }
+    let code = authError.code == .failed ? "ERR_FAILED" : fallback
+    promise.reject(code, diagnosticMessage(authError))
   } else {
-    promise.reject(fallback, error.localizedDescription)
+    promise.reject(fallback, diagnosticMessage(error))
   }
+}
+
+/// The localized description plus the error's domain and code, which stay
+/// matchable when the description is localized or lost on the bridge.
+private func diagnosticMessage(_ error: Error) -> String {
+  let nsError = error as NSError
+  return "\(nsError.localizedDescription) [\(nsError.domain) \(nsError.code)]"
 }
 
 private extension String {

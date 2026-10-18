@@ -14,7 +14,16 @@ import androidx.credentials.exceptions.CreateCredentialCancellationException
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.domerrors.AbortError
+import androidx.credentials.exceptions.domerrors.ConstraintError
+import androidx.credentials.exceptions.domerrors.DomError
+import androidx.credentials.exceptions.domerrors.InvalidStateError
+import androidx.credentials.exceptions.domerrors.NotAllowedError
+import androidx.credentials.exceptions.domerrors.NotSupportedError
+import androidx.credentials.exceptions.domerrors.SecurityError
+import androidx.credentials.exceptions.domerrors.UnknownError
 import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialDomException
+import androidx.credentials.exceptions.publickeycredential.GetPublicKeyCredentialDomException
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -89,17 +98,14 @@ class BetterAuthReactNativePasskeyModule : Module() {
           promise.reject("ERROR_CEREMONY_ABORTED", e.message ?: "User cancelled", e)
         } catch (e: CreatePublicKeyCredentialDomException) {
           val message = e.message ?: "Failed to create passkey"
-          val code = if (
-            message.contains("InvalidStateError", ignoreCase = true) ||
-            message.contains("exclude", ignoreCase = true)
-          ) {
-            "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED"
+          val code = registrationErrorCode(e.domError, optionsJsonObject, useAutoRegister)
+          if (code != null) {
+            promise.reject(code, message, e)
           } else {
-            "CREATE_ERROR"
+            promise.reject("CREATE_ERROR", "$message [${e.type}]", e)
           }
-          promise.reject(code, message, e)
         } catch (e: CreateCredentialException) {
-          promise.reject("CREATE_ERROR", e.message ?: "Failed to create passkey", e)
+          promise.reject("CREATE_ERROR", "${e.message ?: "Failed to create passkey"} [${e.type}]", e)
         } catch (e: Exception) {
           promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error", e)
         }
@@ -145,8 +151,16 @@ class BetterAuthReactNativePasskeyModule : Module() {
           }
         } catch (e: GetCredentialCancellationException) {
           promise.reject("ERROR_CEREMONY_ABORTED", e.message ?: "User cancelled", e)
+        } catch (e: GetPublicKeyCredentialDomException) {
+          val message = e.message ?: "Failed to get passkey"
+          val code = authenticationErrorCode(e.domError)
+          if (code != null) {
+            promise.reject(code, message, e)
+          } else {
+            promise.reject("GET_ERROR", "$message [${e.type}]", e)
+          }
         } catch (e: GetCredentialException) {
-          promise.reject("GET_ERROR", e.message ?: "Failed to get passkey", e)
+          promise.reject("GET_ERROR", "${e.message ?: "Failed to get passkey"} [${e.type}]", e)
         } catch (e: Exception) {
           promise.reject("UNKNOWN_ERROR", e.message ?: "Unknown error", e)
         }
@@ -166,6 +180,52 @@ private fun canUseSetOrigin(activity: Activity): Boolean =
   Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
     ContextCompat.checkSelfPermission(activity, "android.permission.CREDENTIAL_MANAGER_SET_ORIGIN") ==
     PackageManager.PERMISSION_GRANTED
+
+// Mirror @simplewebauthn/browser's identifyRegistrationError and
+// identifyAuthenticationError, so a DOM error gets the code the web client
+// reports. Native requests have no page origin, so a SecurityError always
+// means the app is not associated with the RP ID. Unmapped errors return null.
+private fun registrationErrorCode(
+  error: DomError,
+  options: JSONObject,
+  useAutoRegister: Boolean,
+): String? {
+  val selection = options.optJSONObject("authenticatorSelection")
+  val uvRequired = selection?.optString("userVerification") == "required"
+  return when (error) {
+    is AbortError -> "ERROR_CEREMONY_ABORTED"
+    is ConstraintError -> when {
+      selection?.optBoolean("requireResidentKey") == true ->
+        "ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT"
+      useAutoRegister && uvRequired -> "ERROR_AUTO_REGISTER_USER_VERIFICATION_FAILURE"
+      uvRequired -> "ERROR_AUTHENTICATOR_MISSING_USER_VERIFICATION_SUPPORT"
+      else -> null
+    }
+    is InvalidStateError -> "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED"
+    is NotAllowedError -> "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY"
+    is NotSupportedError -> {
+      val params = options.optJSONArray("pubKeyCredParams")
+      val hasPublicKeyParam = params != null &&
+        (0 until params.length()).any { params.optJSONObject(it)?.optString("type") == "public-key" }
+      if (hasPublicKeyParam) {
+        "ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG"
+      } else {
+        "ERROR_MALFORMED_PUBKEYCREDPARAMS"
+      }
+    }
+    is SecurityError -> "ERROR_INVALID_RP_ID"
+    is UnknownError -> "ERROR_AUTHENTICATOR_GENERAL_ERROR"
+    else -> null
+  }
+}
+
+private fun authenticationErrorCode(error: DomError): String? = when (error) {
+  is AbortError -> "ERROR_CEREMONY_ABORTED"
+  is NotAllowedError -> "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY"
+  is SecurityError -> "ERROR_INVALID_RP_ID"
+  is UnknownError -> "ERROR_AUTHENTICATOR_GENERAL_ERROR"
+  else -> null
+}
 
 private fun Any?.fromJsonValue(): Any? = when (this) {
   is JSONObject -> toMap()

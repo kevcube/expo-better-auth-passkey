@@ -667,6 +667,23 @@ describe("getPasskeyActionsNative", () => {
       ["ERROR_CEREMONY_ABORTED", "Registration cancelled"],
       ["ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED", "Previously registered"],
       ["ERROR_INVALID_RP_ID", "Native failure"],
+      // The rest of the codes the native modules map DOM errors to.
+      ["ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY", "Native failure"],
+      ["ERROR_AUTHENTICATOR_GENERAL_ERROR", "Native failure"],
+      [
+        "ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT",
+        "Native failure",
+      ],
+      ["ERROR_AUTO_REGISTER_USER_VERIFICATION_FAILURE", "Native failure"],
+      [
+        "ERROR_AUTHENTICATOR_MISSING_USER_VERIFICATION_SUPPORT",
+        "Native failure",
+      ],
+      ["ERROR_MALFORMED_PUBKEYCREDPARAMS", "Native failure"],
+      [
+        "ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG",
+        "Native failure",
+      ],
     ])(
       "preserves %s with upstream action-specific messages",
       async (code, message) => {
