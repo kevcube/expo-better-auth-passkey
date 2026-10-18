@@ -180,7 +180,12 @@ Thrown sign-in verification failures also return `AUTH_CANCELLED`/400, regardles
 
 Unlike earlier releases, platform codes such as `NO_ACTIVITY`, `INVALID_OPTIONS`, `CREATE_ERROR`, `GET_ERROR`, and `ERR_FAILED` no longer appear in returned errors. They use the action-specific fallback above. The obsolete `CANCELLED` code is no longer treated as a WebAuthn cancellation; current native modules emit `ERROR_CEREMONY_ABORTED`.
 
-Native errors are still logged to the console with their original code and message. Use those logs for device diagnostics rather than relying on the normalized sign-in message.
+Native modules map platform errors to the codes the web client reports for the same failure, following `@simplewebauthn/browser`:
+
+- iOS: user cancellation is `ERROR_CEREMONY_ABORTED`; a credential matching `excludeCredentials` (iOS 18+, `ASAuthorizationError.matchedExcludedCredential`) is `ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED`.
+- Android: cancellation is `ERROR_CEREMONY_ABORTED`; Credential Manager DOM errors map as in the browser (`InvalidStateError` → `ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED`, `NotAllowedError` → `ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY`, `SecurityError` → `ERROR_INVALID_RP_ID`, `UnknownError` → `ERROR_AUTHENTICATOR_GENERAL_ERROR`, and `ConstraintError`/`NotSupportedError` by the request options).
+
+Native errors are still logged to the console with their original code and message. Unrecognized failures append the platform error's identity to the message (`[ASAuthorizationErrorDomain 1004]` on iOS, the Credential Manager exception type on Android), so they can be diagnosed without matching localized text. Use those logs for device diagnostics rather than relying on the normalized sign-in message.
 
 ## Contributing & macOS testing
 
