@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.6.1...v1.6.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* map native passkey errors to web client codes ([#44](https://github.com/kevcube/expo-better-auth-passkey/issues/44)) ([5f31261](https://github.com/kevcube/expo-better-auth-passkey/commit/5f312614976820aea7c08f4ae212b8c92f9443f6))
+
 ## [1.6.1](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.6.0...v1.6.1) (2026-10-09)
 
 
