@@ -106,7 +106,7 @@ The module internally forwards every server call to Better Auth and only overrid
 4. Make sure your `Info.plist` allows the relying party hostname as an associated domain. Expo handles this automatically when `associatedDomains` is set.
 
 Optional hints supported by this module:
-- Pass `{ useAutoRegister: true }` to `addPasskey` to request the platform UI to suggest immediate passkey creation (iOS 16+).
+- `{ useAutoRegister: true }` on `addPasskey` requests an automatic passkey upgrade (WebAuthn conditional create): call it right after a password sign-in, and the system creates a passkey without showing a sheet if the user's password manager saved that password. Otherwise the request fails, so ignore its error. Supported on web (through Better Auth's web client) and on iOS 18+ / macOS 15+, where the request offers only a platform passkey. Older iOS and macOS show the standard registration sheet. Android doesn't make a conditional request yet; it sets Credential Manager's `preferImmediatelyAvailableCredentials` and `isAutoSelectAllowed` flags on a regular create request.
 - Pass `{ autoFill: true }` to `signIn.passkey` for AutoFill-assisted sign-in from the QuickType bar (iOS 16+; macOS and older iOS show the modal sheet instead). The request stays pending until the user picks the suggestion, so cancel it when the user signs in another way or leaves the screen:
   ```ts
   import { cancelPasskeyAutoFill } from 'expo-better-auth-passkey'
