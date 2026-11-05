@@ -57,7 +57,9 @@ public class BetterAuthReactNativePasskeyModule: Module {
     let uvPref = (authSelection?["userVerification"] as? String)?.toUserVerificationPreference() ?? .preferred
     let attestationPref = (options["attestation"] as? String)?.toAttestationPreference() ?? .none
     let excluded = credentialDescriptors(options["excludeCredentials"])
+    let useAutoRegister = (input["useAutoRegister"] as? Bool) ?? false
     var requests: [ASAuthorizationRequest] = []
+    var conditional = false
 
     // Platform authenticator (Face ID / Touch ID / iCloud Keychain)
     if attachment != "cross-platform" {
@@ -68,11 +70,19 @@ public class BetterAuthReactNativePasskeyModule: Module {
       if #available(iOS 17.4, macOS 14.4, *) {
         request.excludedCredentials = excluded.map(\.platform)
       }
+      // Conditional create: the system upgrades a just-used saved password to
+      // a passkey without showing a sheet, or fails the request. Earlier
+      // versions fall back to the standard registration sheet.
+      if #available(iOS 18.0, macOS 15.0, *), useAutoRegister {
+        request.requestStyle = .conditional
+        conditional = true
+      }
       requests.append(request)
     }
 
-    // Security key (FIDO2 USB / NFC / BLE)
-    if attachment != "platform" {
+    // Security key (FIDO2 USB / NFC / BLE). A conditional request only
+    // creates a platform passkey, so it goes alone.
+    if attachment != "platform" && !conditional {
       let provider = ASAuthorizationSecurityKeyPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
       let request = provider.createCredentialRegistrationRequest(
         challenge: challenge,
@@ -101,7 +111,6 @@ public class BetterAuthReactNativePasskeyModule: Module {
 
     perform(
       requests: requests,
-      useAutoRegister: (input["useAutoRegister"] as? Bool) ?? false,
       useAutofill: false,
       fallbackCode: "ERR_CREATE_PASSKEY",
       promise: promise
@@ -137,7 +146,6 @@ public class BetterAuthReactNativePasskeyModule: Module {
     let useAutofill = (input["useAutofill"] as? Bool) ?? false
     perform(
       requests: useAutofill ? [platformRequest] : [platformRequest, securityRequest],
-      useAutoRegister: false,
       useAutofill: useAutofill,
       fallbackCode: "ERR_GET_PASSKEY",
       promise: promise
@@ -148,7 +156,6 @@ public class BetterAuthReactNativePasskeyModule: Module {
 
   private func perform(
     requests: [ASAuthorizationRequest],
-    useAutoRegister: Bool,
     useAutofill: Bool,
     fallbackCode: String,
     promise: Promise
@@ -181,11 +188,7 @@ public class BetterAuthReactNativePasskeyModule: Module {
     #endif
     // AutoFill-assisted requests don't exist on macOS or before iOS 16, so
     // `useAutofill` falls back to a modal request there.
-    if #available(iOS 16.0, macOS 13.0, *), useAutoRegister {
-      controller.performRequests(options: .preferImmediatelyAvailableCredentials)
-    } else {
-      controller.performRequests()
-    }
+    controller.performRequests()
   }
 
   /// Rejects the pending AutoFill-assisted request with ERROR_CEREMONY_ABORTED
