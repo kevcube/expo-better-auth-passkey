@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.6.2...v1.7.0) (2026-11-05)
+
+
+### Features
+
+* **ios:** use conditional create for useAutoRegister on iOS 18+ ([#50](https://github.com/kevcube/expo-better-auth-passkey/issues/50)) ([de32abd](https://github.com/kevcube/expo-better-auth-passkey/commit/de32abdae90f5110330e90368afc3a04c38c07c9))
+
 ## [1.6.2](https://github.com/kevcube/expo-better-auth-passkey/compare/v1.6.1...v1.6.2) (2026-10-18)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "expo-better-auth-passkey",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "Expo native passkey support for better-auth",
   "packageManager": "pnpm@11.21.0",
   "main": "build/index.js",
